@@ -419,9 +419,12 @@ function openFreezerMap() {
       inner || null, h("b", {}, label), h("small", {}, ps.length ? (total ? count(total) : "vazia") : ""));
     return btn;
   };
-  // a block of door bins drawn as stacked bins, one button for the whole block
-  const doorBlock = ns => slot("bins", findDoor(ns), ns.map(n => `${n}ª`).join(ns.length > 2 ? ", " : " e ").replace(/, (\d)ª$/, " e $1ª"),
-    h("span", { class: "fbins", "aria-hidden": "true" }, ns.map(() => h("i"))));
+  // one plain square per block of door shelves
+  const doorBlock = ns => {
+    const b = slot("block", findDoor(ns), ns.map(n => `${n}ª`).join(ns.length > 2 ? ", " : " e ").replace(/, (\d)ª$/, " e $1ª"));
+    b.style.flexGrow = ns.length;   // taller block for more shelves; together they fill the door
+    return b;
+  };
   const door = h("div", { class: "fdoor" },
     h("span", { class: "fcap" }, "Porta"),
     doorBlock([1, 2]),
