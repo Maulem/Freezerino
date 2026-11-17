@@ -12,7 +12,7 @@ Mobile web app in Portuguese, meant to be added to the phone's home screen.
 ## Features
 
 - Two freezers (Freezer Andréia, Freezer Zé), each with its own shelves and drawers.
-- The ⓘ next to the freezer switch shows a front-view map of the selected freezer. Freezer Andréia with how many foods each spot has.
+- The ⓘ next to the freezer switch shows a front-view map of the selected freezer, with how many foods each spot has. Freezer Andréia:
   Door: 1ª and 2ª shelves, the ice and water dispenser, then 3ª to 5ª (used as two spots, e.g. "Porta 1ª e 2ª").
   Inside: 3 shelves and 2 drawers. Spots are matched to the shelves in the app by name.
   With Freezer Zé selected it shows that freezer instead (no door shelves): the box with a flap lid (1ª Prateleira),
