@@ -6,7 +6,7 @@ import { SEED_ITEMS } from "./seed.js";
   items/{id}    { name, place, units: [timestamp|null, ...], unknown, shelfMonths|null, min|null, note, addedAt, updatedAt }
                 units = one entry per package, the date it went in (null = date not known). Count = units.length.
                 "−" always removes the oldest entry (nulls count as oldest).
-  places/{id}   { label, order }
+  places/{id}   { label, order, freezer? }   freezer = "andreia" (default when missing) or "ze"
   shopping/{id} { name, done, auto, itemId?, addedAt }   auto entries use id "auto-<itemId>".
   meta/seed, meta/places   one-time markers
 */
@@ -22,6 +22,10 @@ const SHELF_OPTIONS = [
   [null, "Sem validade"], [1, "1 mês"], [2, "2 meses"], [3, "3 meses"], [4, "4 meses"],
   [6, "6 meses"], [9, "9 meses"], [12, "1 ano"], [18, "1 ano e meio"], [24, "2 anos"],
 ];
+const FREEZERS = [
+  { id: "andreia", label: "Freezer Andréia" },
+  { id: "ze", label: "Freezer Zé Zé" },
+];
 const DAY = 86400000;
 const TITLES = { freezer: "Freezerino", compras: "Compras", prateleiras: "Prateleiras" };
 
@@ -36,6 +40,11 @@ const pending = {};      // itemId -> { units, timer }
 let subs = [];
 let loadTimer = null;
 let tab = tabFromHash();
+let fz = loadFz();          // freezer being shown
+let alertOnly = false;     // "only what expires soon" filter
+
+function loadFz() { try { const v = localStorage.getItem("fz"); return FREEZERS.some(f => f.id === v) ? v : "andreia"; } catch { return "andreia"; } }
+function setFz(id) { fz = id; try { localStorage.setItem("fz", id); } catch {} render(); }
 
 const $ = s => document.querySelector(s);
 
@@ -89,10 +98,19 @@ function inDays(d) {
   return `vence em ${Math.floor(d / 30)} meses`;
 }
 // Expiry of one dated unit for an item, or null.
+// level: "bad" = less than 20% of its freezer time left (or expired), "soon" = less than half left, "ok" otherwise.
 function unitExpiry(it, ts) {
   if (!it.shelfMonths || ts == null) return null;
-  const d = daysBetween(Date.now(), addMonths(ts, it.shelfMonths));
-  return { days: d, level: d < 0 ? "bad" : d <= 14 ? "soon" : "ok", text: inDays(d), date: addMonths(ts, it.shelfMonths) };
+  const date = addMonths(ts, it.shelfMonths);
+  const d = daysBetween(Date.now(), date);
+  const left = (date - Date.now()) / (date - ts);
+  return { days: d, expired: d < 0, left, level: left < 0.2 ? "bad" : left < 0.5 ? "soon" : "ok", text: inDays(d), date };
+}
+// Expiry of an item = its oldest dated package (the next one to go out).
+function itemExpiry(id, it) {
+  if (!it || isUnknown(id)) return null;
+  const dated = sortUnits(unitsOf(id)).filter(u => u != null);
+  return dated.length ? unitExpiry(it, dated[0]) : null;
 }
 
 /* ---------- units helpers ---------- */
@@ -105,6 +123,13 @@ function unitsOf(id) {
 }
 const isUnknown = id => !!items.get(id)?.unknown && !pending[id];
 const placeLabel = id => places.find(p => p.id === id)?.label || "Sem lugar";
+const fzOf = p => p?.freezer || "andreia";
+const fzLabel = id => FREEZERS.find(f => f.id === id)?.label || "Freezer";
+const fzShort = id => fzLabel(id).replace(/^Freezer /, "");
+const placesIn = f => places.filter(p => fzOf(p) === f);
+const itemFz = it => fzOf(places.find(p => p.id === it.place));
+// "2ª Gaveta (Zé Zé)"
+const placeFull = id => { const p = places.find(x => x.id === id); return p ? `${p.label} (${fzShort(fzOf(p))})` : "Sem lugar"; };
 
 /* ---------- tabs ---------- */
 
@@ -263,45 +288,106 @@ function render() {
   const open = [...shopping.values()].filter(s => !s.done).length;
   const badge = $("#shopBadge");
   badge.hidden = !open; badge.textContent = open;
+  const al = alerts();
+  const fb = $("#fzBadge");
+  fb.hidden = !al.bad.length; fb.textContent = al.bad.length;
 
   if (tab === "freezer") renderFreezer();
   else if (tab === "compras") renderShopping();
   else renderPlaces();
 }
 
+// Foods that are past half (yellow) or under 20% (red) of their freezer time, across both freezers.
+function alerts() {
+  const bad = [], soon = [];
+  for (const [id, it] of items) {
+    const e = itemExpiry(id, it);
+    if (!e || !unitsOf(id).length) continue;
+    if (e.level === "bad") bad.push({ id, e, f: itemFz(it) });
+    else if (e.level === "soon") soon.push({ id, e, f: itemFz(it) });
+  }
+  return { bad, soon, expired: bad.filter(a => a.e.expired).length };
+}
+
+function fzSwitch(onPick) {
+  const al = alerts();
+  return h("div", { class: "fzs", role: "tablist", "aria-label": "Freezer" }, FREEZERS.map(f => {
+    const n = al.bad.filter(a => a.f === f.id).length;
+    return h("button", {
+      type: "button", role: "tab", "aria-selected": String(f.id === fz), class: "fz",
+      onclick: () => { if (onPick) onPick(); setFz(f.id); },
+    }, f.label, n ? h("span", { class: "badge in" }, n) : null);
+  }));
+}
+
+function alertBox() {
+  const al = alerts();
+  const total = al.bad.length + al.soon.length;
+  if (!total) { alertOnly = false; return h("div", { class: "alertbox calm" }, h("span", { class: "pip ok" }), "Tudo dentro da validade"); }
+  const parts = [];
+  if (al.expired) parts.push(h("b", { class: "bad" }, al.expired === 1 ? "1 vencido" : `${al.expired} vencidos`));
+  const redLeft = al.bad.length - al.expired;
+  if (redLeft) parts.push(h("b", { class: "bad" }, redLeft === 1 ? "1 para usar logo" : `${redLeft} para usar logo`));
+  if (al.soon.length) parts.push(h("b", { class: "soon" }, al.soon.length === 1 ? "1 passou da metade" : `${al.soon.length} passaram da metade`));
+  const line = parts;
+  return h("button", {
+    type: "button", class: "alertbox" + (al.bad.length ? " hot" : "") + (alertOnly ? " on" : ""), "aria-pressed": String(alertOnly),
+    onclick: () => { alertOnly = !alertOnly; render(); window.scrollTo(0, 0); },
+  }, h("span", { class: "pip " + (al.bad.length ? "bad" : "soon") }), h("span", { class: "line" }, line),
+     h("span", { class: "go" }, alertOnly ? "Ver tudo" : "Ver"));
+}
+
 function renderFreezer() {
   const list = $("#list");
   const q = norm($("#q").value);
   const all = [...items.entries()].map(([id, d]) => ({ id, ...d }));
-  const shown = all.filter(it => !q || norm(it.name).includes(q));
+
+  if (ready.items && ready.places) {
+    $("#alertSlot").replaceChildren(alertBox());
+    $("#fzSlot").replaceChildren(alertOnly || q ? "" : fzSwitch());
+  }
+
+  const al = alerts();
+  const alertIds = new Set([...al.bad, ...al.soon].map(a => a.id));
+  const filtering = !!q || alertOnly;
+  const shown = all.filter(it => (!q || norm(it.name).includes(q)) && (!alertOnly || alertIds.has(it.id)));
 
   const ans = $("#answer");
   ans.textContent = "";
+  ans.hidden = !(q && ready.items);
   if (q && ready.items) {
-    if (!shown.length) ans.textContent = "Não achei isso no freezer.";
-    else ans.append("Está na ", h("b", {}, [...new Set(shown.map(i => placeLabel(i.place)))].join(", ")));
+    if (!shown.length) ans.textContent = alertOnly ? "Nenhuma comida vencendo com esse nome." : "Não achei isso no freezer.";
+    else ans.append("Está na ", h("b", {}, [...new Set(shown.map(i => placeFull(i.place)))].join(", ")));
   }
 
   if (!ready.items || !ready.places) return;
   list.textContent = "";
-  if (!all.length && !places.length) {
-    list.append(h("div", { class: "state" }, h("strong", {}, "O freezer está vazio"), "Toque em “+ Adicionar” para colocar a primeira comida."));
+  if (!filtering && !placesIn(fz).length) {
+    list.append(h("div", { class: "state" }, h("strong", {}, `${fzLabel(fz)} ainda não tem prateleiras`),
+      "Crie as prateleiras e gavetas dele para começar a guardar comida aqui.",
+      h("a", { class: "btn primary", href: "#prateleiras" }, "Criar prateleiras")));
     return;
   }
-  const sections = [...places];
-  if (all.some(i => !places.find(p => p.id === i.place))) sections.push({ id: "__none", label: "Sem lugar" });
+  // Searching or filtering looks in both freezers; otherwise just the chosen one.
+  const ordered = FREEZERS.flatMap(f => placesIn(f.id));
+  const sections = filtering ? ordered : placesIn(fz);
+  const orphan = all.filter(i => !places.find(p => p.id === i.place));
+  if (orphan.length && (filtering || fz === "andreia")) sections.push({ id: "__none", label: "Sem lugar" });
   for (const p of sections) {
-    const its = shown
-      .filter(i => p.id === "__none" ? !places.find(x => x.id === i.place) : i.place === p.id)
-      .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
-    if (q && !its.length) continue;
+    let its = shown.filter(i => p.id === "__none" ? !places.find(x => x.id === i.place) : i.place === p.id);
+    its = alertOnly
+      ? its.sort((a, b) => itemExpiry(a.id, a).left - itemExpiry(b.id, b).left)
+      : its.sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+    if (filtering && !its.length) continue;
     const total = its.filter(i => isUnknown(i.id) || unitsOf(i.id).length > 0).length;
+    const count = total === 1 ? "1 item" : `${total} itens`;
     const sec = h("section", { class: "place" },
-      h("h2", {}, p.label, h("small", {}, total === 1 ? "1 item" : `${total} itens`)));
+      h("h2", {}, p.label, h("small", {}, filtering && p.id !== "__none" ? `${fzShort(fzOf(p))} · ${count}` : count)));
     if (!its.length) sec.append(h("div", { class: "empty-place" }, "Vazio"));
     else sec.append(h("ul", {}, its.map(itemRow)));
     list.append(sec);
   }
+  if (filtering && !list.children.length && !q) list.append(h("div", { class: "state" }, h("strong", {}, "Nada vencendo")));
 }
 
 function itemRow(it) {
@@ -311,13 +397,12 @@ function itemRow(it) {
   const out = !unknown && n === 0;
   const dated = units.filter(u => u != null);
   const oldest = dated[0];
-  const exp = unitExpiry(it, oldest);
+  const exp = out ? null : unitExpiry(it, oldest);
   const low = !unknown && it.min != null && n < it.min;
 
   const tags = [];
   if (unknown) tags.push(h("i", { class: "tag" }, "conferir quantidade"));
-  if (exp && exp.level === "bad" && !out) tags.push(h("i", { class: "tag bad" }, exp.text));
-  else if (exp && exp.level === "soon" && !out) tags.push(h("i", { class: "tag" }, exp.text));
+  if (exp && exp.expired) tags.push(h("i", { class: "tag bad" }, exp.text));
   if (low) tags.push(h("i", { class: "tag info" }, "na lista de compras"));
 
   let meta = "";
@@ -327,13 +412,14 @@ function itemRow(it) {
       : n === 1 ? `colocado ${ago(oldest)}`
       : units[0] == null ? `mais antigo: sem data · último: ${ago(units[n - 1])}`
       : `mais antigo: ${ago(oldest)}`;
-    if (exp && exp.level === "ok") meta += ` · ${exp.text}`;
   }
+  const expText = exp && !exp.expired ? h("em", { class: "exp " + exp.level }, exp.text) : null;
 
   const row = h("li", { class: "item" + (out ? " out" : "") },
     h("button", { class: "name", type: "button", onclick: () => openItemSheet(it.id), "aria-label": `Editar ${it.name}` },
-      h("span", {}, it.name),
+      h("span", { class: exp && exp.level !== "ok" ? "lvl-" + exp.level : null }, it.name),
       tags.length ? h("div", { class: "tags" }, tags) : null,
+      expText,
       meta ? h("em", {}, meta) : null,
       it.note ? h("em", {}, it.note) : null),
   );
@@ -400,10 +486,11 @@ function shelfSelect(value) {
 function openItemSheet(id) {
   const editing = id ? items.get(id) : null;
   if (id && !editing) return;
+  if (!editing && !placesIn(fz).length) { toast(`Crie uma prateleira no ${fzLabel(fz)} primeiro.`); location.hash = "#prateleiras"; return; }
   if (!places.length) { toast("Crie uma prateleira primeiro."); location.hash = "#prateleiras"; return; }
   if (pending[id]) { clearTimeout(pending[id].timer); flush(id); }
 
-  let place = editing?.place || places[0].id;
+  let place = editing?.place || placesIn(fz)[0].id;
   let units = editing ? sortUnits(unitsOf(id)) : [];
   let unknown = editing ? !!editing.unknown : false;
   let armed = false;
@@ -413,12 +500,17 @@ function openItemSheet(id) {
   const minIn = h("input", { type: "number", id: "f-min", inputmode: "numeric", min: "1", max: "999", value: editing?.min ?? "", placeholder: "Não avisar" });
   const noteIn = h("input", { type: "text", id: "f-note", value: editing?.note || "", placeholder: "Opcional (ex: porção de 500 g)", autocomplete: "off" });
 
-  const chips = h("div", { class: "chips", role: "group", "aria-label": "Onde" });
+  const chips = h("div", { class: "chipgroups" });
   const drawChips = () => {
     chips.textContent = "";
-    for (const p of places) chips.append(h("button", {
-      class: "chip", type: "button", "aria-pressed": String(p.id === place), onclick: () => { place = p.id; drawChips(); },
-    }, p.label));
+    for (const f of FREEZERS) {
+      const ps = placesIn(f.id);
+      if (!ps.length) continue;
+      chips.append(h("div", { class: "chipgroup" }, h("small", {}, f.label),
+        h("div", { class: "chips", role: "group", "aria-label": f.label }, ps.map(p => h("button", {
+          class: "chip", type: "button", "aria-pressed": String(p.id === place), onclick: () => { place = p.id; drawChips(); },
+        }, p.label)))));
+    }
   };
   drawChips();
 
@@ -436,7 +528,7 @@ function openItemSheet(id) {
       unitList.append(h("li", {},
         h("div", {},
           h("span", {}, ts == null ? "Data desconhecida" : `Entrou em ${fmtDate(ts)}`),
-          e ? h("small", { class: e.level === "bad" ? "bad" : "" }, `${e.text} (${fmtDate(e.date)})`) : ts != null ? h("small", {}, ago(ts)) : null),
+          e ? h("small", { class: e.level === "ok" ? "" : e.level }, `${e.text} (${fmtDate(e.date)})`) : ts != null ? h("small", {}, ago(ts)) : null),
         h("button", { class: "x", type: "button", "aria-label": "Tirar esta entrada", onclick: () => { units.splice(i, 1); drawUnits(); } }, "×")));
     });
   };
@@ -489,7 +581,7 @@ function openItemSheet(id) {
         const doc = { name, place, units: fresh, unknown: false, shelfMonths, min, note, addedAt: now, updatedAt: now };
         store.set("items", nid, doc).catch(fail);
         syncShopping(nid, doc, n);
-        toast(`${name} na ${placeLabel(place)}`);
+        toast(`${name} na ${placeFull(place)}`);
       }
     }
     closeSheet();
@@ -555,7 +647,7 @@ function shopRow(s) {
   let sub = null;
   if (s.auto && it && !s.done) {
     const n = Array.isArray(it.units) ? it.units.length : 0;
-    sub = `automático · tem ${n}, mínimo ${it.min ?? "-"} · ${placeLabel(it.place)}`;
+    sub = `automático · tem ${n}, mínimo ${it.min ?? "-"} · ${placeFull(it.place)}`;
   } else if (s.auto && !s.done) sub = "automático";
   const toggle = () => store.update("shopping", s.id, s.done ? { done: false, doneAt: DELETE } : { done: true, doneAt: Date.now() }).catch(fail);
   return h("li", { class: "shop" + (s.done ? " done" : "") },
@@ -596,15 +688,17 @@ function renderPlaces() {
   const box = $("#placeList");
   if (!ready.places) return;
   box.textContent = "";
-  if (places.length) {
-    box.append(h("ul", { class: "card" }, places.map((p, i) => {
+  box.append(fzSwitch());
+  const mine = placesIn(fz);
+  if (mine.length) {
+    box.append(h("ul", { class: "card" }, mine.map((p, i) => {
       const count = [...items.values()].filter(it => it.place === p.id).length;
       let armed = false;
       return h("li", { class: "placerow" },
         h("button", { class: "what", type: "button", onclick: () => openPlaceSheet(p.id), "aria-label": `Renomear ${p.label}` },
           h("span", {}, p.label), h("small", {}, count === 1 ? "1 comida" : `${count} comidas`)),
         h("button", { class: "x", type: "button", "aria-label": `Subir ${p.label}`, disabled: i === 0 ? true : null, onclick: () => movePlace(i, -1) }, "↑"),
-        h("button", { class: "x", type: "button", "aria-label": `Descer ${p.label}`, disabled: i === places.length - 1 ? true : null, onclick: () => movePlace(i, 1) }, "↓"),
+        h("button", { class: "x", type: "button", "aria-label": `Descer ${p.label}`, disabled: i === mine.length - 1 ? true : null, onclick: () => movePlace(i, 1) }, "↓"),
         h("button", {
           class: "x", type: "button", "aria-label": `Excluir ${p.label}`, onclick: e => {
             if (count) { toast(`Tire ou mova as ${count} comidas de “${p.label}” antes de excluir.`); return; }
@@ -614,16 +708,17 @@ function renderPlaces() {
         }, "×"));
     })));
   } else {
-    box.append(h("div", { class: "state" }, h("strong", {}, "Nenhuma prateleira"), "Crie a primeira prateleira ou gaveta."));
+    box.append(h("div", { class: "state" }, h("strong", {}, `${fzLabel(fz)} sem prateleiras`), "Crie a primeira prateleira ou gaveta dele."));
   }
   box.append(h("button", { class: "btn primary addplace", type: "button", onclick: () => openPlaceSheet(null) }, "+ Nova prateleira ou gaveta"));
 }
 
 function movePlace(i, dir) {
-  const a = places[i], b = places[i + dir];
+  const mine = placesIn(fz);
+  const a = mine[i], b = mine[i + dir];
   if (!a || !b) return;
-  // normalise orders so swapping always works
-  const ops = places.map((p, k) => {
+  // normalise orders (within this freezer) so swapping always works
+  const ops = mine.map((p, k) => {
     let order = k + 1;
     if (k === i) order = i + dir + 1;
     else if (k === i + dir) order = i + 1;
@@ -640,12 +735,12 @@ function openPlaceSheet(id) {
     const label = nameIn.value.trim();
     if (!label) { nameIn.focus(); return; }
     if (editing) store.update("places", id, { label }).catch(fail);
-    else store.set("places", newId(label), { label, order: (places.at(-1)?.order ?? 0) + 1 }).catch(fail);
+    else store.set("places", newId(label), { label, order: (placesIn(fz).at(-1)?.order ?? 0) + 1, freezer: fz }).catch(fail);
     closeSheet();
     toast(editing ? "Renomeado" : `${label} criada`);
   };
   showSheet(h("form", { class: "sheet", onsubmit: save },
-    h("h3", {}, editing ? "Renomear" : "Nova prateleira ou gaveta"),
+    h("h3", {}, editing ? "Renomear" : `Nova prateleira no ${fzLabel(fz)}`),
     field("Nome", nameIn),
     h("div", { class: "row" },
       h("button", { class: "btn", type: "button", onclick: closeSheet }, "Cancelar"),
