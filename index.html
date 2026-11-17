@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Freezerino</title>
+<meta name="description" content="O que tem em cada prateleira e gaveta do freezer.">
+<meta name="theme-color" content="#1f5f8b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Freezerino">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Login: only the family password -->
+<div class="wrap login" id="loginView" hidden>
+  <form id="loginForm" autocomplete="on">
+    <img class="logo" src="icons/icon-192.png" alt="">
+    <h1>Freezerino</h1>
+    <p>Digite a senha da família para abrir o freezer.</p>
+    <input type="text" name="username" autocomplete="username" value="familia@freezerino.app" hidden>
+    <input id="pw" type="password" name="password" autocomplete="current-password" placeholder="Senha" aria-label="Senha da família" required>
+    <button class="btn primary" id="loginBtn" type="submit">Entrar</button>
+    <div class="err" id="loginErr" role="alert"></div>
+  </form>
+</div>
+
+<!-- App -->
+<div class="wrap" id="appView" hidden>
+  <header>
+    <div>
+      <h1>Freezerino</h1>
+      <div class="sub"><span class="dot" id="dot"></span><span id="status">Conectando…</span></div>
+    </div>
+    <button class="ghost" id="logout" type="button">Sair</button>
+  </header>
+  <div class="searchbar">
+    <input id="q" class="search" type="search" placeholder="Procurar comida… (ex: feijão)" autocomplete="off" aria-label="Procurar comida">
+    <div class="answer" id="answer"></div>
+  </div>
+  <div class="places" id="list">
+    <div class="state"><strong>Carregando o freezer…</strong>As prateleiras e gavetas aparecem aqui em instantes.</div>
+  </div>
+</div>
+<button class="fab" id="add" type="button" hidden>+ Adicionar</button>
+<div id="sheetRoot"></div>
+
+<div class="wrap" id="bootView">
+  <div class="state"><strong>Abrindo o Freezerino…</strong></div>
+</div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
