@@ -20,6 +20,16 @@ const DEFAULT_PLACES = [
   { id: "g1", label: "1ª Gaveta", order: 4 },
   { id: "g2", label: "2ª Gaveta", order: 5 },
 ];
+// Freezer Zé, top to bottom (photo of 2026-11-17). Created once when that freezer still has no shelves.
+const ZE_PLACES = [
+  { id: "ze-p12", label: "1ª e 2ª Prateleira", order: 1 },
+  { id: "ze-p34", label: "3ª e 4ª Prateleira", order: 2 },
+  { id: "ze-gp", label: "Gaveta pequena", order: 3 },
+  { id: "ze-p5", label: "5ª Prateleira", order: 4 },
+  { id: "ze-g1", label: "1ª Gaveta", order: 5 },
+  { id: "ze-g2", label: "2ª Gaveta", order: 6 },
+  { id: "ze-g3", label: "3ª Gaveta", order: 7 },
+];
 const SHELF_OPTIONS = [
   [null, "Sem validade"], [1, "1 mês"], [2, "2 meses"], [3, "3 meses"], [4, "4 meses"],
   [6, "6 meses"], [9, "9 meses"], [12, "1 ano"], [18, "1 ano e meio"], [24, "2 anos"],
@@ -217,7 +227,7 @@ function startData() {
   subs.push(store.listen("places", (m, meta) => {
     places = [...m].map(([id, d]) => ({ id, ...d })).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
     ready.places = true;
-    if (!meta.fromCache) once("places", seedPlaces);
+    if (!meta.fromCache) once("places", async () => { await seedPlaces(); await seedZePlaces(); });
     render();
   }, onErr));
   subs.push(store.listen("shopping", m => { shopping = m; ready.shopping = true; render(); }, onErr));
@@ -262,6 +272,14 @@ async function seedPlaces() {
     ops.push({ op: "set", c: "meta", id: "places", data: { at: Date.now() } });
     await store.batch(ops);
   } catch (e) { console.warn("places seed failed", e); }
+}
+async function seedZePlaces() {
+  try {
+    if (placesIn("ze").length || await store.get("meta", "placesZe")) return;
+    const ops = ZE_PLACES.map(({ id, ...d }) => ({ op: "set", c: "places", id, data: { ...d, freezer: "ze" } }));
+    ops.push({ op: "set", c: "meta", id: "placesZe", data: { at: Date.now() } });
+    await store.batch(ops);
+  } catch (e) { console.warn("Zé places seed failed", e); }
 }
 
 // Old format had a plain "qty" number. Turn it into one dated entry per package.
@@ -392,8 +410,8 @@ function fzSwitch(onPick) {
 // Front view of Freezer Andréia (from the photo of 2026-11-17). Door on the left, top to bottom: 1ª and 2ª shelves,
 // the ice and water dispenser, then 3ª, 4ª and 5ª (the family uses each block as one spot, e.g. "Porta 1ª e 2ª").
 // Inside on the right: ice maker, 3 shelves, 2 drawers. Shelves in the app are matched by their names.
-// Freezer Zé (photo of 2026-11-17) has nothing on the door: one column, top to bottom: the box with a flap lid
-// (1ª Prateleira, or a name with "compartimento"), 2ª Prateleira, a thin 1ª Gaveta, 3ª Prateleira, 2ª to 4ª Gaveta.
+// Freezer Zé (photo of 2026-11-17) has nothing on the door: one column, top to bottom (see ZE_PLACES): the box with a
+// flap lid (1ª e 2ª), the tall shelf (3ª e 4ª), a small drawer, the 5ª shelf, 1ª to 3ª Gaveta. Matched by id.
 function openFreezerMap(f = "andreia") {
   const mine = placesIn(f);
   const nums = p => (norm(p.label).match(/\d/g) || []).map(Number);
@@ -429,13 +447,16 @@ function openFreezerMap(f = "andreia") {
   };
   let map;
   if (f === "ze") {
-    const top = mine.filter(p => norm(p.label).includes("compart")).slice(0, 1);
+    const z = (cls, id, inner) => {
+      const p = mine.find(x => x.id === id);
+      return slot(cls, p ? [p] : [], p?.label || ZE_PLACES.find(x => x.id === id).label, inner);
+    };
     map = h("div", { class: "fmap one" }, h("div", { class: "fbody" },
-      slot("lid", top.length ? top : findIn("prateleira", 1), top[0]?.label || "1ª Prateleira", h("span", { class: "flap", "aria-hidden": "true" })),
-      slot("shelf tall", findIn("prateleira", 2), "2ª Prateleira"),
-      slot("drawer thin", findIn("gaveta", 1), "1ª Gaveta"),
-      slot("shelf", findIn("prateleira", 3), "3ª Prateleira"),
-      [2, 3, 4].map(n => slot("drawer", findIn("gaveta", n), `${n}ª Gaveta`))));
+      z("lid", "ze-p12", h("span", { class: "flap", "aria-hidden": "true" })),
+      z("shelf tall", "ze-p34"),
+      z("drawer thin", "ze-gp"),
+      z("shelf", "ze-p5"),
+      ["ze-g1", "ze-g2", "ze-g3"].map(id => z("drawer", id))));
   } else {
     const door = h("div", { class: "fdoor" },
       h("span", { class: "fcap" }, "Porta"),
