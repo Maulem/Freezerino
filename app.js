@@ -24,7 +24,7 @@ const SHELF_OPTIONS = [
 ];
 const FREEZERS = [
   { id: "andreia", label: "Freezer Andréia" },
-  { id: "ze", label: "Freezer Zé Zé" },
+  { id: "ze", label: "Freezer Zé" },
 ];
 const DAY = 86400000;
 const TITLES = { freezer: "Freezerino", compras: "Compras", prateleiras: "Prateleiras" };
@@ -128,7 +128,7 @@ const fzLabel = id => FREEZERS.find(f => f.id === id)?.label || "Freezer";
 const fzShort = id => fzLabel(id).replace(/^Freezer /, "");
 const placesIn = f => places.filter(p => fzOf(p) === f);
 const itemFz = it => fzOf(places.find(p => p.id === it.place));
-// "2ª Gaveta (Zé Zé)"
+// "2ª Gaveta (Zé)"
 const placeFull = id => { const p = places.find(x => x.id === id); return p ? `${p.label} (${fzShort(fzOf(p))})` : "Sem lugar"; };
 
 /* ---------- tabs ---------- */

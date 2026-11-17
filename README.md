@@ -1,6 +1,6 @@
 # Freezerino
 
-Lista dos freezers da família (Andréia e Zé Zé): o que tem em cada prateleira e gaveta, com quantidades, datas de entrada e aviso de validade.
+Lista dos freezers da família (Andréia e Zé): o que tem em cada prateleira e gaveta, com quantidades, datas de entrada e aviso de validade.
 Web app em português, feito para usar no celular (adicionar à tela inicial).
 
 - **Página:** HTML/CSS/JS estático, hospedado no GitHub Pages.
