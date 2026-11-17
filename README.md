@@ -12,10 +12,13 @@ Mobile web app in Portuguese, meant to be added to the phone's home screen.
 ## Features
 
 - Two freezers (Freezer Andréia, Freezer Zé), each with its own shelves and drawers.
+- The ⓘ next to the freezer switch shows a front-view map of Freezer Andréia (5 door shelves; inside: 3 shelves and
+  2 drawers) with how many foods each spot has. It can create the door shelves in the app with one tap.
 - One dated entry per package; "−" always takes out the oldest one.
 - Freezer time per food: the name turns yellow with less than half of it left, red with less than 20%.
   A box at the top counts what's expiring and can filter the list to just those foods.
-- Shopping list tab; foods with a minimum ("Comprar quando tiver menos de") are added to it automatically.
+- Shopping list tab; foods with a minimum ("Comprar quando tiver menos de") are added to it automatically. The same
+  food on several shelves counts as one total (bacon on the 1st and 3rd shelves = 2).
 - History tab: who put in, took out or stored what, and when (each phone says once who uses it). Kept for 6 months.
 - Bought items on the shopping list have a "Guardar" button that puts them in the freezer and takes them off the list.
 - 17 food categories with an icon (beef, pork, chicken, fish, cold cuts, cheese, beans, spices, pasta, snacks, breads,

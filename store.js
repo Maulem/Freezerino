@@ -95,6 +95,8 @@ function demoStore() {
   colls.items.set("carne-teste", { name: "Carne moída", place: "p2", units: [now - 50 * day, now - 5 * day], unknown: false, shelfMonths: 3, min: null, note: "", addedAt: now - 50 * day, updatedAt: now });
   // 2 months, 52 days in -> under 20% left (red, not expired)
   colls.items.set("peixe-teste", { name: "Filé de peixe", place: "p1", units: [now - 52 * day], unknown: false, shelfMonths: 2, min: null, note: "", addedAt: now - 52 * day, updatedAt: now });
+  colls.items.set("bacon-p1", { name: "Bacon", place: "p1", units: [now - 10 * day], unknown: false, shelfMonths: 3, min: 3, note: "", addedAt: now - 10 * day, updatedAt: now });
+  colls.items.set("bacon-p3", { name: "Bacon", place: "p3", units: [now - 4 * day], unknown: false, shelfMonths: 3, min: null, note: "", addedAt: now - 4 * day, updatedAt: now });
   colls.meta.set("seed", { at: Date.now() });
   colls.devices = new Map();
   colls.log = new Map();

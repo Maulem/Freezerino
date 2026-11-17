@@ -289,16 +289,54 @@ async function migrate() {
 
 // Called after an item's count changes. Adds it to the shopping list when it falls below its minimum,
 // and takes it off again (if not yet ticked) once there is enough.
+// The same food can sit on several shelves (bacon on the 1st and 3rd): the minimum is checked against the total.
 function syncShopping(id, item, count) {
   if (!item || item.unknown) return;
-  const sid = "auto-" + id;
+  const key = norm(item.name);
+  const group = [[id, item], ...[...items.entries()].filter(([i, d]) => i !== id && norm(d.name) === key)];
+  const t = foodTotal(item.name, { id, item, count });
+  const withMin = group.filter(([, d]) => d.min != null);
+  const owner = withMin[0]?.[0];   // one automatic entry per food
+  for (const [i] of group) {
+    const s = shopping.get("auto-" + i);
+    if (i !== owner && s && !s.done) store.del("shopping", "auto-" + i).catch(fail);
+  }
+  if (!owner) return;
+  const min = Math.max(...withMin.map(([, d]) => d.min));
+  const sid = "auto-" + owner;
   const s = shopping.get(sid);
-  if (item.min != null && count < item.min) {
-    if (!s || s.done) store.set("shopping", sid, { name: item.name, done: false, auto: true, itemId: id, addedAt: Date.now() }).catch(fail);
+  if (!t.unknown && t.n < min) {
+    if (!s || s.done) store.set("shopping", sid, { name: item.name, done: false, auto: true, itemId: owner, addedAt: Date.now() }).catch(fail);
   } else if (s && !s.done) {
     store.del("shopping", sid).catch(fail);
   }
 }
+
+// Total of one food across every shelf of both freezers. over = { id, item, count } for a change not saved yet.
+function foodTotal(name, over) {
+  const key = norm(name);
+  let n = 0, unknown = false;
+  const where = [];
+  for (const [id, d] of items) {
+    if (norm(d.name) !== key || (over && id === over.id)) continue;
+    if (isUnknown(id)) unknown = true; else n += unitsOf(id).length;
+    where.push(d.place);
+  }
+  if (over) { n += over.count; where.push(over.item.place); }
+  return { n, unknown, where };
+}
+
+// "1ª Prateleira (Andréia)", "1ª Prateleira e 3ª Prateleira (Andréia)" or "3 lugares"
+function placesText(where) {
+  const ids = [...new Set(where)];
+  if (ids.length <= 1) return placeFull(ids[0]);
+  const ps = ids.map(id => places.find(p => p.id === id));
+  const fzs = new Set(ps.map(p => p && fzOf(p)));
+  if (ps.some(p => !p) || fzs.size > 1 || ids.length > 3) return `${ids.length} lugares`;
+  const labels = ps.sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).map(p => p.label);
+  return `${labels.slice(0, -1).join(", ")} e ${labels.at(-1)} (${fzShort([...fzs][0])})`;
+}
+const totalText = t => t.unknown ? (t.n ? `${t.n}+?` : "?") : String(t.n);
 
 /* ---------- render ---------- */
 
@@ -341,13 +379,72 @@ function alerts() {
 
 function fzSwitch(onPick) {
   const al = alerts();
-  return h("div", { class: "fzs", role: "tablist", "aria-label": "Freezer" }, FREEZERS.map(f => {
+  const info = h("button", { type: "button", class: "fzinfo", "aria-label": "Mapa do Freezer Andréia", onclick: openFreezerMap }, "i");
+  return h("div", { class: "fzrow" }, info, h("div", { class: "fzs", role: "tablist", "aria-label": "Freezer" }, FREEZERS.map(f => {
     const n = al.bad.filter(a => a.f === f.id).length;
     return h("button", {
       type: "button", role: "tab", "aria-selected": String(f.id === fz), class: "fz",
       onclick: () => { if (onPick) onPick(); setFz(f.id); },
     }, f.label, n ? h("span", { class: "badge in" }, n) : null);
-  }));
+  })));
+}
+
+// Front view of Freezer Andréia (from the photo of 2026-11-17): door on the left with 5 shelves,
+// inside on the right with the ice maker, 3 shelves and 2 drawers. Shelves in the app are matched by name.
+function openFreezerMap() {
+  const mine = placesIn("andreia");
+  const find = (kind, n) => mine.find(p => {
+    const l = norm(p.label), door = l.includes("porta");
+    const num = Number((l.match(/\d/) || [])[0]);
+    if (num !== n) return false;
+    if (kind === "porta") return door;
+    return !door && l.includes(kind);
+  });
+  const info = h("p", { class: "fmap-info" }, "Toque numa prateleira para ver o que tem nela.");
+  const slot = (cls, kind, n, label) => {
+    const p = find(kind, n);
+    const list = p ? [...items.values()].filter(d => d.place === p.id) : [];
+    const pick = () => {
+      for (const b of document.querySelectorAll(".fslot")) b.classList.toggle("on", b === btn);
+      info.textContent = "";
+      if (!p) { info.append(h("b", {}, label), " ainda não existe no app. Toque em Criar prateleiras da porta."); return; }
+      info.append(h("b", {}, p.label + ": "), list.length
+        ? list.map(d => d.name + (d.unknown ? "" : ` (${(d.units || []).length})`)).join(", ")
+        : "vazia.");
+    };
+    const btn = h("button", { type: "button", class: "fslot " + cls, onclick: pick },
+      h("b", {}, label), h("small", {}, p ? (list.length ? (list.length === 1 ? "1 comida" : `${list.length} comidas`) : "vazia") : ""));
+    return btn;
+  };
+  const door = h("div", { class: "fdoor" },
+    h("span", { class: "fcap" }, "Porta"),
+    slot("bin", "porta", 1, "1ª"),
+    h("div", { class: "fdisp", "aria-hidden": "true" }, "gelo e água"),
+    [2, 3, 4, 5].map(n => slot("bin", "porta", n, `${n}ª`)));
+  const body = h("div", { class: "fbody" },
+    h("span", { class: "fcap" }, "Dentro"),
+    h("div", { class: "fice", "aria-hidden": "true" }, "máquina de gelo"),
+    [1, 2, 3].map(n => slot("shelf", "prateleira", n, `${n}ª Prateleira`)),
+    [1, 2].map(n => slot("drawer", "gaveta", n, `${n}ª Gaveta`)));
+  // The door shelves didn't exist in the app at first: one tap creates the missing ones.
+  const missing = [1, 2, 3, 4, 5].filter(n => !find("porta", n));
+  const addDoor = () => {
+    let order = mine.at(-1)?.order ?? 0;
+    const ops = missing.map(n => ({ op: "set", c: "places", id: newId(`porta ${n}`), data: { label: `Porta ${n}ª prateleira`, order: ++order, freezer: "andreia" } }));
+    store.batch(ops).catch(fail);
+    closeSheet();
+    toast(missing.length === 1 ? "Prateleira da porta criada" : "Prateleiras da porta criadas");
+    setTimeout(openFreezerMap, 400);
+  };
+  showSheet(h("div", { class: "sheet" },
+    h("h3", {}, "Freezer Andréia"),
+    h("p", { class: "help" }, "Com a porta aberta, de cima para baixo."),
+    h("div", { class: "fmap" }, door, body),
+    info,
+    h("div", { class: "row" },
+      missing.length ? h("button", { class: "btn primary", type: "button", onclick: addDoor },
+        missing.length === 5 ? "Criar prateleiras da porta" : `Criar ${missing.length} da porta`) : null,
+      h("button", { class: "btn", type: "button", onclick: closeSheet }, "Fechar"))));
 }
 
 function alertBox() {
@@ -564,7 +661,9 @@ function nameSuggestions(text, limit = 6) {
     seen.add(key);
     out.push({ name, score, rank, it, len: name.length });
   };
-  for (const [, it] of items) add(it.name, 0, it);
+  // the freezer on screen first, so picking a food fills in its shelf there
+  const mine = [...items.values()].sort((a, b) => (itemFz(b) === fz) - (itemFz(a) === fz));
+  for (const it of mine) add(it.name, 0, it);
   for (const [, sh] of shopping) add(sh.name, 1, null);
   for (const f of FOODS) add(f, 2, null);
   out.sort((a, b) => a.score - b.score || a.rank - b.rank || a.len - b.len || a.name.localeCompare(b.name, "pt-BR"));
@@ -582,13 +681,13 @@ function withSuggest(input, onPick) {
     if (!list.length || document.activeElement !== input) { hide(); return; }
     for (const s of list) {
       const c = catById(categoryOf(s.it || { name: s.name }));
-      const n = s.it ? (s.it.unknown ? "?" : (Array.isArray(s.it.units) ? s.it.units.length : 0)) : null;
+      const t = s.it ? foodTotal(s.it.name) : null;
       box.append(h("button", {
         type: "button", role: "option", class: "sg",
         onpointerdown: e => e.preventDefault(),   // keep the keyboard open
         onclick: () => { input.value = s.name; hide(); input.dispatchEvent(new Event("input")); onPick && onPick(s.name, s.it); },
       }, h("i", { "aria-hidden": "true" }, c.icon), h("span", {}, s.name),
-         s.it ? h("small", {}, `já tem ${n} · ${placeFull(s.it.place)}`) : null));
+         t ? h("small", {}, `já tem ${totalText(t)} · ${placesText(t.where)}`) : null));
     }
     box.hidden = false;
   };
@@ -846,8 +945,8 @@ function shopRow(s) {
   const name = it?.name || s.name;
   let sub = null;
   if (s.auto && it && !s.done) {
-    const n = Array.isArray(it.units) ? it.units.length : 0;
-    sub = `automático · tem ${n}, mínimo ${it.min ?? "-"} · ${placeFull(it.place)}`;
+    const t = foodTotal(it.name);
+    sub = `automático · tem ${totalText(t)}, mínimo ${it.min ?? "-"} · ${placesText(t.where)}`;
   } else if (s.auto && !s.done) sub = "automático";
   const toggle = () => store.update("shopping", s.id, s.done ? { done: false, doneAt: DELETE } : { done: true, doneAt: Date.now() }).catch(fail);
   return h("li", { class: "shop" + (s.done ? " done" : "") },
