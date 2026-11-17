@@ -58,6 +58,9 @@ async function send(title, body, tag) {
   if (!entries.length) { console.log("No phones signed up for notifications."); return; }
   const res = await getMessaging().sendEach(entries.map(([, d]) => ({
     token: d.token,
+    // data-only message: the website's service worker and the Android app (PushService) both show it themselves
+    data: { title, body, tag, url: APP_URL + "#freezer" },
+    android: { priority: "high", ttl: 86400 * 1000 },
     webpush: { headers: { Urgency: "high", TTL: "86400" }, data: { title, body, tag, url: APP_URL + "#freezer" } },
   })));
   const gone = [];

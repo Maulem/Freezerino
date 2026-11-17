@@ -1,8 +1,0 @@
-[{
-  "relation": ["delegate_permission/common.handle_all_urls"],
-  "target": {
-    "namespace": "android_app",
-    "package_name": "com.nkoindustries.freezerino",
-    "sha256_cert_fingerprints": ["4D:6C:2E:FF:1D:6A:54:52:23:5D:F4:0A:2A:99:E0:1C:6E:93:2E:7C:DA:D3:EF:A8:47:29:92:66:E9:3D:DD:42"]
-  }
-}]

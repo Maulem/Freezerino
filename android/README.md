@@ -1,11 +1,29 @@
 # Freezerino for Android
 
-A Trusted Web Activity (TWA): a small Android app that opens https://maulem.github.io/Freezerino/ full screen in
-Chrome. It's the same site, so updates to the web app reach the Android app with nothing to reinstall. Notifications
-(web push through Chrome, shown under the app's name), offline mode, login and the daily backup all keep working.
+A native Android app, written in Kotlin with Jetpack Compose. It uses the same Firebase project and data as the
+website, so changes on one show up on the other right away. The iPhones keep using the website.
 
-- Package: `com.nkoindustries.freezerino`, publisher NKO Industries.
-- Library: `com.google.androidbrowserhelper:androidbrowserhelper`.
+- Package: `com.nkoindustries.freezerino`. Publisher: NKO Industries.
+- Firebase: Auth (the shared family account), Firestore (works offline, keeps a copy on the phone), and Cloud
+  Messaging (expiry notifications from the daily GitHub job, shown by `PushService`).
+- It has every feature of the website: two freezers, the freezer maps, dated packages, expiry colours and the alert
+  box, search and the category filter, autocomplete, the shopping list (automatic items, Guardar, WhatsApp), history,
+  shelves, and notifications.
+
+## Code
+
+- `data/Model.kt`: Firestore documents, expiry rules, dates.
+- `data/Store.kt`: live data, all writes, the shopping list logic, history, and push registration.
+- `data/Categories.kt`: food categories and suggested freezer times.
+- `data/FoodData.kt`: **generated** from the website's `categories.js` and `foods.js`. After changing those files, run
+  `python android/tools/gen_data.py` from the repo root.
+- `ui/`: screens (`FreezerScreen`, `Tabs`) and bottom sheets (`ItemSheet`, `Sheets`).
+
+## Firebase setup (one time)
+
+In the Firebase console, add an Android app with the package name `com.nkoindustries.freezerino`. Download
+`google-services.json` and put it in `android/app/`. The file is git-ignored. Without it the app still logs in and
+syncs (it uses the web app's IDs), but notifications don't work.
 
 ## Build
 
@@ -14,24 +32,8 @@ cd android
 JAVA_HOME="/c/Program Files/Android/Android Studio/jbr" ./gradlew assembleRelease
 ```
 
-The APK ends up in `app/build/outputs/apk/release/app-release.apk`.
+The APK is written to `app/build/outputs/apk/release/app-release.apk`.
 
 Signing: `key.properties` (git-ignored) points to the upload key at `C:/Users/Maulem/.android-keys/freezerino.jks`.
-A copy of key.properties is next to the key. **Back up both files.** Without them, an update can't be installed over
+A copy of `key.properties` sits next to the key. **Back up both files.** Without them, updates can't be installed over
 the existing app.
-
-## Hide the address bar (Digital Asset Links)
-
-Android shows the app full screen only after the site confirms the app belongs to it. It checks this file:
-`https://maulem.github.io/.well-known/assetlinks.json`. That path is at the root of the domain, so it has to live
-in a repo called `maulem.github.io`, not in this one:
-
-1. On GitHub, create a public repo named exactly `maulem.github.io`.
-2. Add `assetlinks/assetlinks.json` from this folder as `.well-known/assetlinks.json`.
-3. Add an empty `.nojekyll` file so GitHub Pages also publishes the `.well-known` folder.
-4. Pages turns on by itself for that repo. Wait a minute, then reopen the app.
-
-Until then the app works, with a thin address bar at the top.
-
-The fingerprint in assetlinks.json belongs to the upload key above. If the app is ever published on Google Play,
-add Play's app-signing fingerprint as a second entry.
