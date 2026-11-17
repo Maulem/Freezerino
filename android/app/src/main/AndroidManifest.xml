@@ -16,6 +16,7 @@
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher"
         android:label="@string/appName"
+        android:manageSpaceActivity="com.google.androidbrowserhelper.trusted.ManageDataLauncherActivity"
         android:theme="@android:style/Theme.Translucent.NoTitleBar">
 
         <meta-data android:name="asset_statements" android:resource="@string/assetStatements" />
@@ -46,6 +47,10 @@
             </intent-filter>
         </activity>
 
+        <!-- "Manage space" in Android's app settings opens the site's data settings in Chrome. -->
+        <activity android:name="com.google.androidbrowserhelper.trusted.ManageDataLauncherActivity" android:exported="false">
+            <meta-data android:name="android.support.customtabs.trusted.MANAGE_SPACE_URL" android:value="@string/launchUrl" />
+        </activity>
         <activity android:name="com.google.androidbrowserhelper.trusted.FocusActivity" />
         <activity android:name="com.google.androidbrowserhelper.trusted.WebViewFallbackActivity"
             android:configChanges="orientation|screenSize" />
