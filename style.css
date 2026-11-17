@@ -372,3 +372,9 @@ li.logrow.out .sign { background: var(--warn-soft); color: var(--warn); }
 .fslot.on { border-color: var(--accent); background: var(--accent-soft); }
 .fmap-info { margin: 0; font-size: 14.5px; color: var(--muted); line-height: 1.45; }
 .fmap-info b { color: var(--ink); }
+/* Freezer Zé: one column, no door shelves */
+.fmap.one { grid-template-columns: 1fr; width: 100%; max-width: 260px; margin: 0 auto; }
+.fslot.lid { height: 92px; border-radius: 8px; position: relative; border-style: solid; border-width: 1.5px 1.5px 6px; }
+.flap { position: absolute; top: 8px; left: 12%; width: 76%; height: 5px; border-radius: 3px; background: var(--line); }
+.fslot.shelf.tall { height: 84px; }
+.fslot.drawer.thin { height: 46px; }

@@ -379,7 +379,7 @@ function alerts() {
 
 function fzSwitch(onPick) {
   const al = alerts();
-  const info = h("button", { type: "button", class: "fzinfo", "aria-label": "Mapa do Freezer Andréia", onclick: openFreezerMap }, "i");
+  const info = h("button", { type: "button", class: "fzinfo", "aria-label": `Mapa do ${fzLabel(fz)}`, onclick: () => openFreezerMap(fz) }, "i");
   return h("div", { class: "fzrow" }, info, h("div", { class: "fzs", role: "tablist", "aria-label": "Freezer" }, FREEZERS.map(f => {
     const n = al.bad.filter(a => a.f === f.id).length;
     return h("button", {
@@ -392,8 +392,10 @@ function fzSwitch(onPick) {
 // Front view of Freezer Andréia (from the photo of 2026-11-17). Door on the left, top to bottom: 1ª and 2ª shelves,
 // the ice and water dispenser, then 3ª, 4ª and 5ª (the family uses each block as one spot, e.g. "Porta 1ª e 2ª").
 // Inside on the right: ice maker, 3 shelves, 2 drawers. Shelves in the app are matched by their names.
-function openFreezerMap() {
-  const mine = placesIn("andreia");
+// Freezer Zé (photo of 2026-11-17) has nothing on the door: one column, top to bottom: the box with a flap lid
+// (1ª Prateleira, or a name with "compartimento"), 2ª Prateleira, a thin 1ª Gaveta, 3ª Prateleira, 2ª to 4ª Gaveta.
+function openFreezerMap(f = "andreia") {
+  const mine = placesIn(f);
   const nums = p => (norm(p.label).match(/\d/g) || []).map(Number);
   const isDoor = p => norm(p.label).includes("porta");
   // door: every door shelf whose numbers touch the block; inside: the shelf/drawer with that number
@@ -425,20 +427,32 @@ function openFreezerMap() {
     b.style.flexGrow = ns.length;   // taller block for more shelves; together they fill the door
     return b;
   };
-  const door = h("div", { class: "fdoor" },
-    h("span", { class: "fcap" }, "Porta"),
-    doorBlock([1, 2]),
-    h("div", { class: "fdisp", "aria-hidden": "true" }, "gelo e água"),
-    doorBlock([3, 4, 5]));
-  const body = h("div", { class: "fbody" },
-    h("span", { class: "fcap" }, "Dentro"),
-    h("div", { class: "fice", "aria-hidden": "true" }, "máquina de gelo"),
-    [1, 2, 3].map(n => slot("shelf", findIn("prateleira", n), `${n}ª Prateleira`)),
-    [1, 2].map(n => slot("drawer", findIn("gaveta", n), `${n}ª Gaveta`)));
+  let map;
+  if (f === "ze") {
+    const top = mine.filter(p => norm(p.label).includes("compart")).slice(0, 1);
+    map = h("div", { class: "fmap one" }, h("div", { class: "fbody" },
+      slot("lid", top.length ? top : findIn("prateleira", 1), top[0]?.label || "1ª Prateleira", h("span", { class: "flap", "aria-hidden": "true" })),
+      slot("shelf tall", findIn("prateleira", 2), "2ª Prateleira"),
+      slot("drawer thin", findIn("gaveta", 1), "1ª Gaveta"),
+      slot("shelf", findIn("prateleira", 3), "3ª Prateleira"),
+      [2, 3, 4].map(n => slot("drawer", findIn("gaveta", n), `${n}ª Gaveta`))));
+  } else {
+    const door = h("div", { class: "fdoor" },
+      h("span", { class: "fcap" }, "Porta"),
+      doorBlock([1, 2]),
+      h("div", { class: "fdisp", "aria-hidden": "true" }, "gelo e água"),
+      doorBlock([3, 4, 5]));
+    const body = h("div", { class: "fbody" },
+      h("span", { class: "fcap" }, "Dentro"),
+      h("div", { class: "fice", "aria-hidden": "true" }, "máquina de gelo"),
+      [1, 2, 3].map(n => slot("shelf", findIn("prateleira", n), `${n}ª Prateleira`)),
+      [1, 2].map(n => slot("drawer", findIn("gaveta", n), `${n}ª Gaveta`)));
+    map = h("div", { class: "fmap" }, door, body);
+  }
   showSheet(h("div", { class: "sheet" },
-    h("h3", {}, "Freezer Andréia"),
+    h("h3", {}, fzLabel(f)),
     h("p", { class: "help" }, "Com a porta aberta, de cima para baixo."),
-    h("div", { class: "fmap" }, door, body),
+    map,
     info,
     h("div", { class: "row" }, h("button", { class: "btn", type: "button", onclick: closeSheet }, "Fechar"))));
 }
