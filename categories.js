@@ -1,6 +1,8 @@
 // Food categories, guessed from the name by keywords (no internet or AI needed).
-// Order matters: the first category with a matching word wins, so dishes come before the ingredients
-// they contain ("Asa de frango com arroz" is a ready meal, "Massa de pastel" is pasta, "Peito de peru" is a cold cut).
+// How a name is classified (Portuguese puts the main word first: "Batata doce", "Pizza de calabresa"):
+//   1. A dish marker anywhere ("com arroz", "ao molho", "strogonoff"…) makes it a ready meal.
+//   2. Otherwise the keyword that starts earliest in the name wins; on a tie, the longest keyword
+//      ("Peito de peru" beats "peito", "Batata doce" beats "doce"); then the order of the list below.
 // Keywords are matched as whole words, without accents or case, also in the plural (+s, +es, -ões/-ães → -ão).
 // months = suggested freezer time for the category; `long`/`short` list words that change it.
 
@@ -9,9 +11,11 @@ export const CATEGORIES = [
     id: "prontos", icon: "🍲", label: "Comidas prontas", months: 3, words: [
       "strogonoff", "estrogonofe", "estrogonoff", "feijoada", "arroz", "risoto", "sopa", "caldo", "canja", "creme de abobora",
       "ao molho", "lasanha a bolonhesa", "escondidinho", "pure", "marmita", "refeicao", "ensopado", "guisado", "bolonhesa",
-      "ragu", "farofa", "yakisoba", "galinhada", "moqueca", "empadao", "quiche", "chili", "curry", "dobradinha", "mocoto",
+      "ragu", "farofa", "yakisoba", "galinhada", "moqueca", "empadao", "quiche", "chili", "curry", "dobradinha", "mocoto pronto",
       "sobra", "sobras", "almondega", "almondegas", "omelete", "torta salgada", "baiao", "tutu", "virado", "picadinho",
-      "carne de panela", "salpicao", "fricasse", "bobo", "vatapa", "xinxim", "sarapatel", "rabada", "cozido", "panelada",
+      "carne de panela", "salpicao", "fricasse", "bobo", "vatapa", "xinxim", "sarapatel", "rabada pronta", "cozido", "panelada",
+      "torta", "creme de mandioquinha", "creme de milho", "creme de espinafre", "panqueca de carne", "panqueca de frango",
+      "panqueca recheada", "panquecas recheadas",
       "frango assado", "frango xadrez", "frango com", "carne com", "com arroz", "com batata", "com legumes",
       "parmegiana", "a parmegiana", "milanesa", "empanado", "steak de frango", "cordon bleu",
       "feijao tropeiro", "tropeiro", "arroz carreteiro", "carreteiro", "polenta", "angu", "cuscuz", "pirao", "tapioca recheada",
@@ -41,7 +45,7 @@ export const CATEGORIES = [
       "pao", "croissant", "baguete", "bisnaga", "bisnaguinha", "broa", "brioche", "ciabatta", "bagel", "tortilla",
       "tortilha", "wrap", "rap10", "pita", "pao sirio", "sirio", "focaccia", "pao frances", "pao de forma", "pao integral",
       "pao de batata", "pao de hamburguer", "pao de hot dog", "pao australiano", "pao de leite", "sovado", "torrada",
-      "waffle", "panqueca", "crepe", "massa de crepe", "tapioca", "goma de tapioca", "biscoito", "bolacha", "muffin",
+      "waffle", "panqueca", "crepe", "massa de crepe", "tapioca", "goma de tapioca", "massa de tapioca", "massa de pao", "biscoito", "bolacha", "muffin",
       "rosca", "cuca", "sonho",
     ],
   },
@@ -51,7 +55,7 @@ export const CATEGORIES = [
       "pave", "bolo", "torta doce", "torta de limao", "petit gateau", "brownie", "cookie", "trufa", "bombom", "geleia",
       "chantilly", "sorbet", "frozen", "milkshake", "acai na tigela", "acai com", "creme de acai", "sacole", "geladinho",
       "chup chup", "dindin", "gelinho", "torta de morango", "banoffee", "tiramisu", "profiterole", "churros", "beijinho",
-      "doce de leite", "leite condensado", "cobertura", "massa de bolo", "cupcake", "donut", "rosquinha", "pao de mel",
+      "doce de leite", "leite condensado", "cobertura", "massa de bolo", "massa de cookie", "massa de brownie", "cupcake", "donut", "rosquinha", "pao de mel",
     ],
   },
   {
@@ -64,7 +68,7 @@ export const CATEGORIES = [
   {
     id: "embutidos", icon: "🌭", label: "Embutidos e frios", months: 2, words: [
       "linguica", "salsicha", "salsichao", "calabresa", "bacon", "presunto", "apresuntado", "mortadela", "salame", "copa",
-      "peito de peru", "blanquet", "lombo canadense", "pepperoni", "chorizo", "paio", "toucinho", "torresmo", "salaminho",
+      "peito de peru", "blanquet", "lombo canadense", "pepperoni", "chorizo", "paio", "toucinho", "salaminho",
       "frios", "hot dog", "cachorro quente", "kassler", "fiambre", "pastrami", "jamon", "presunto parma", "parma",
       "linguica toscana", "linguica de frango", "linguica portuguesa", "linguica calabresa", "chourico",
     ],
@@ -89,7 +93,8 @@ export const CATEGORIES = [
       "alho", "alho picado", "alho poro", "cebola", "cebola picada", "cheiro verde", "salsinha", "cebolinha", "coentro",
       "manjericao", "hortela", "alecrim", "tomilho", "louro", "oregano", "gengibre", "pimenta", "pimenta dedo de moca",
       "molho", "molho de tomate", "molho branco", "molho pesto", "pesto", "extrato de tomate", "polpa de tomate",
-      "tempero", "tempero caseiro", "refogado", "sofrito", "pasta de alho", "caldo caseiro", "fundo", "demi glace",
+      "tempero", "tempero caseiro", "refogado", "sofrito", "pasta de alho", "caldo caseiro", "caldo de carne", "caldo de frango",
+      "caldo de legumes", "caldo de peixe", "caldo de galinha", "fundo", "demi glace",
       "chimichurri", "vinagrete", "suco de limao", "raspas",
     ],
   },
@@ -99,7 +104,7 @@ export const CATEGORIES = [
       "linguado", "pintado", "tambaqui", "tucunare", "dourado", "pargo", "namorado", "polaca", "panga", "saint peter",
       "pirarucu", "pacu", "badejo", "garoupa", "corvina", "anchova", "cavala", "camarao", "lula", "polvo", "marisco",
       "mexilhao", "vieira", "siri", "caranguejo", "lagosta", "ostra", "kani", "kani kama", "surimi", "file de peixe",
-      "anel de lula", "frutos do mar", "posta", "lombo de bacalhau", "sashimi", "sushi", "temaki",
+      "anel de lula", "frutos do mar", "carne de siri", "iscas de peixe", "hamburguer de peixe", "file de merluza", "posta", "lombo de bacalhau", "sashimi", "sushi", "temaki",
     ],
   },
   {
@@ -110,14 +115,16 @@ export const CATEGORIES = [
       "frango", "galinha", "galeto", "coxa", "sobrecoxa", "asa", "asinha", "drumet", "tulipa", "sassami", "peito",
       "file de frango", "coracao", "coracao de frango", "moela", "figado de frango", "peru", "chester", "pato",
       "codorna", "ave", "frango inteiro", "frango a passarinho", "meio da asa", "pe de galinha", "pescoco",
-      "frango desfiado", "frango moido",
+      "frango desfiado", "frango moido", "coxinha da asa", "espetinho de frango", "hamburguer de frango", "iscas de frango",
+      "carne de frango",
     ],
   },
   {
     id: "porco", icon: "🐖", label: "Carne de porco", months: 6, words: [
       "porco", "suino", "suina", "barriga", "barriga de porco", "pernil", "lombo", "lombo suino", "bisteca", "costelinha",
       "costela suina", "costelinha de porco", "panceta", "picanha suina", "pe de porco", "orelha", "rabo de porco",
-      "pururuca", "leitao", "file suino", "file mignon suino", "carre", "secreto", "pancetta",
+      "pururuca", "leitao", "file suino", "file mignon suino", "carre", "secreto", "pancetta", "copa lombo", "torresmo",
+      "carne de porco", "carne suina", "espetinho de porco", "linguica fresca suina",
     ],
   },
   {
@@ -127,7 +134,8 @@ export const CATEGORIES = [
       "carne", "bife", "alcatra", "patinho", "picanha", "maminha", "fraldinha", "contrafile", "contra file", "file mignon",
       "mignon", "acem", "musculo", "costela", "costela bovina", "cupim", "coxao", "coxao mole", "coxao duro", "lagarto",
       "paleta", "moida", "moido", "carne moida", "hamburguer", "hamburger", "carne seca", "charque", "jerked beef",
-      "figado", "cordeiro", "carneiro", "cabrito", "vitela", "ossobuco", "kafta", "chuleta", "t-bone", "ancho",
+      "figado", "cordeiro", "carneiro", "cabrito", "vitela", "ossobuco", "rabada", "mocoto", "pernil de cordeiro",
+      "carre de cordeiro", "costela de cordeiro", "paleta de cordeiro", "kafta", "chuleta", "t-bone", "ancho",
       "prime rib", "tomahawk", "steak", "espetinho", "churrasco", "bombom de alcatra", "miolo da alcatra",
       "assado", "cubos de carne", "carne em cubos", "carne em tiras", "iscas", "lingua", "rim", "bucho",
       "denver", "flat iron", "short rib", "brisket", "peito bovino", "fraldao", "capa de file", "file de costela",
@@ -137,9 +145,9 @@ export const CATEGORIES = [
     id: "vegetais", icon: "🥦", label: "Legumes e verduras", months: 12, words: [
       "brocolis", "couve", "couve flor", "couve-flor", "couve de bruxelas", "espinafre", "ervilha", "vagem", "milho",
       "milho verde", "cenoura", "abobora", "abobrinha", "berinjela", "legume", "seleta", "seleta de legumes",
-      "mandioca", "aipim", "macaxeira", "batata", "batata doce", "batata-doce", "batata palito", "batata frita",
+      "mandioca", "aipim", "macaxeira", "batata", "batata doce", "batata-doce", "batata dulce", "batata palito", "batata frita",
       "batata pre frita", "inhame", "cara", "quiabo", "pimentao", "tomate", "chuchu", "beterraba", "jilo", "vegetais",
-      "verdura", "palmito", "cogumelo", "champignon", "shimeji", "shitake", "repolho", "acelga", "rucula",
+      "verdura", "palmito", "cogumelo", "champignon", "shimeji", "shitake", "shiitake", "repolho", "acelga", "rucula",
       "alface", "pupunha", "maxixe", "aspargo", "alcachofra", "mix de legumes", "mix de vegetais", "jardineira", "nabo",
       "rabanete", "mandioquinha", "batata baroa", "taioba", "ora pro nobis", "tofu",
     ],
@@ -154,7 +162,12 @@ export const CATEGORIES = [
       "mexerica", "bergamota", "cranberry",
     ],
   },
-  { id: "outros", icon: "📦", label: "Outros", months: 3, words: [] },
+  {
+    id: "outros", icon: "📦", label: "Outros", months: 3, words: [
+      "racao", "comida do cachorro", "comida de cachorro", "comida do gato", "comida de gato", "petisco de cachorro",
+      "leite materno", "gelo reutilizavel", "gelo artificial", "bolsa termica", "bolsa de gelo",
+    ],
+  },
 ];
 
 const BY_ID = Object.fromEntries(CATEGORIES.map(c => [c.id, c]));
@@ -168,6 +181,26 @@ const wordsRe = list => new RegExp(`(?:^| )(?:${[...new Set(list.map(clean))].so
 
 const MATCHERS = CATEGORIES.filter(c => c.words.length).map(c => ({ id: c.id, re: wordsRe(c.words) }));
 
+// Words that make any food a prepared dish, wherever they appear ("Asa de frango com arroz", "Frango ao molho").
+const DISH = wordsRe([
+  "com arroz", "com batata", "com batatas", "com legumes", "com pure", "com feijao", "com macarrao", "com molho", "ao molho",
+  "a parmegiana", "parmegiana", "a milanesa", "milanesa", "strogonoff", "estrogonofe", "estrogonoff", "ensopado",
+  "assado pronto", "xadrez", "refogada", "a bolonhesa", "ao sugo", "ao curry", "na moranga", "escondidinho", "fricasse",
+]);
+
+// Earliest keyword in the name wins, then the longest one.
+function bestMatch(n) {
+  let best = null;
+  for (const m of MATCHERS) {
+    const r = m.re.exec(n);
+    if (!r) continue;
+    const lead = r[0].startsWith(" ") ? 1 : 0;
+    const pos = r.index + lead, len = r[0].length - lead;
+    if (!best || pos < best.pos || (pos === best.pos && len > best.len)) best = { id: m.id, pos, len };
+  }
+  return best;
+}
+
 /* ---------- what the family taught the app ---------- */
 // learned = { "cleaned food name": categoryId }, shared through the database (meta/cats).
 let learned = {};
@@ -180,12 +213,13 @@ export function setLearned(map) {
 }
 
 export function guessCategory(name) {
-  const n = clean(name);
+  // "Carne para estrogonofe", "Legumes para sopa": what it is comes before "para".
+  const n = clean(name).replace(/ (para|pra) .*$/, "");
   if (!n) return "outros";
   if (learned[n] && BY_ID[learned[n]]) return learned[n];
   for (const m of learnedList) if (m.re.test(n)) return m.id;
-  for (const m of MATCHERS) if (m.re.test(n)) return m.id;
-  return "outros";
+  if (DISH.test(n)) return "prontos";
+  return bestMatch(n)?.id || "outros";
 }
 
 // The category to show: the one picked by hand for this food, or the guess from the name.

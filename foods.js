@@ -5,7 +5,7 @@ export const FOODS = [
   // Carne bovina
   "Acém", "Acém em cubos", "Alcatra", "Alcatra em bifes", "Alcatra em cubos", "Alcatra fracionada", "Ancho", "Bife",
   "Bife de alcatra", "Bife de contrafilé", "Bife de fígado", "Bife de patinho", "Bife a rolê", "Bombom de alcatra",
-  "Brisket", "Capa de filé", "Carne de panela", "Carne em cubos", "Carne em tiras", "Carne moída", "Carne moída de patinho",
+  "Brisket", "Capa de filé", "Carne em cubos", "Carne em tiras", "Carne moída", "Carne moída de patinho",
   "Carne moída de acém", "Carne para churrasco", "Carne para estrogonofe", "Carne para picadinho", "Carne seca",
   "Carne seca dessalgada", "Charque", "Chuleta", "Contrafilé", "Contrafilé em bifes", "Costela bovina", "Costela de boi",
   "Costela em tiras", "Coxão duro", "Coxão mole", "Cupim", "Denver steak", "Espetinho de carne", "Fígado bovino",
@@ -22,7 +22,7 @@ export const FOODS = [
   "Carne de porco moída", "Lombo recheado",
 
   // Embutidos e frios
-  "Bacon", "Bacon em cubos", "Bacon fatiado", "Calabresa", "Calabresa fatiada", "Chorizo", "Linguiça", "Linguiça calabresa",
+  "Peito de peru assado", "Bacon", "Bacon em cubos", "Bacon fatiado", "Calabresa", "Calabresa fatiada", "Chorizo", "Linguiça", "Linguiça calabresa",
   "Linguiça de frango", "Linguiça de pernil", "Linguiça mineira", "Linguiça portuguesa", "Linguiça toscana", "Linguiça apimentada",
   "Paio", "Salsicha", "Salsicha de frango", "Salsichão", "Salame", "Salaminho", "Presunto", "Presunto parma", "Apresuntado",
   "Mortadela", "Peito de peru", "Blanquet de peru", "Lombo canadense", "Pepperoni", "Pastrami", "Toucinho", "Kassler",
@@ -32,9 +32,8 @@ export const FOODS = [
   "Drumet", "Filé de frango", "Filé de peito de frango", "Frango a passarinho", "Frango desfiado", "Frango em cubos",
   "Frango em tiras", "Frango inteiro", "Frango moído", "Frango temperado", "Fígado de frango", "Galeto", "Galinha caipira",
   "Meio da asa", "Moela", "Pé de galinha", "Peito de frango", "Peito de frango com osso", "Peito de frango desfiado",
-  "Sassami", "Sobrecoxa", "Sobrecoxa sem osso", "Tulipa", "Chester", "Peru inteiro", "Peito de peru assado", "Pato",
-  "Magret de pato", "Codorna", "Espetinho de frango", "Hambúrguer de frango", "Nuggets de frango", "Empanado de frango",
-  "Steak de frango", "Frango à milanesa", "Frango à parmegiana", "Cordon bleu",
+  "Sassami", "Sobrecoxa", "Sobrecoxa sem osso", "Tulipa", "Chester", "Peru inteiro", "Pato",
+  "Magret de pato", "Codorna", "Espetinho de frango", "Hambúrguer de frango", 
 
   // Peixes e frutos do mar
   "Anchova", "Atum", "Bacalhau", "Bacalhau dessalgado", "Lombo de bacalhau", "Badejo", "Cação", "Cavala", "Corvina",
@@ -44,7 +43,7 @@ export const FOODS = [
   "Camarão cinza", "Camarão rosa", "Camarão limpo", "Camarão com casca", "Camarão empanado", "Lula", "Anéis de lula",
   "Polvo", "Mexilhão", "Marisco", "Vieira", "Siri", "Carne de siri", "Caranguejo", "Lagosta", "Ostra", "Kani kama",
   "Surimi", "Frutos do mar", "Mix de frutos do mar", "Peixe empanado", "Iscas de peixe", "Hambúrguer de peixe",
-  "Bolinho de bacalhau", "Sushi", "Temaki",
+  "Sushi", "Temaki",
 
   // Queijos e laticínios
   "Queijo", "Queijo minas", "Queijo minas frescal", "Queijo prato", "Queijo coalho", "Queijo muçarela", "Muçarela ralada",
@@ -68,7 +67,7 @@ export const FOODS = [
 
   // Legumes e verduras
   "Abóbora", "Abóbora cabotiá", "Abóbora em cubos", "Abobrinha", "Acelga", "Aipim", "Alcachofra", "Aspargo", "Batata",
-  "Batata-doce", "Batata frita", "Batata palito", "Batata pré-frita", "Batata rústica", "Batata smile", "Berinjela",
+  "Batata-doce", "Batata frita", "Batata palito", "Batata pré-frita", "Batata rústica", "Berinjela",
   "Beterraba", "Brócolis", "Brócolis ninja", "Cará", "Cenoura", "Cenoura em cubos", "Chuchu", "Cogumelo", "Champignon",
   "Shimeji", "Shiitake", "Couve", "Couve picada", "Couve-flor", "Couve-de-bruxelas", "Ervilha", "Ervilha congelada",
   "Espinafre", "Inhame", "Jardineira de legumes", "Jiló", "Legumes", "Legumes para sopa", "Macaxeira", "Mandioca",
@@ -87,7 +86,7 @@ export const FOODS = [
   "Tamarindo", "Polpa de tamarindo", "Tangerina", "Umbu", "Uva", "Uva verde", "Polpa de fruta", "Mix de frutas",
 
   // Pães
-  "Pão", "Pão francês", "Pão de forma", "Pão integral", "Pão de hambúrguer", "Pão de hot dog", "Pão sírio",
+  "Pão ralado", "Massa de pão", "Pão", "Pão francês", "Pão de forma", "Pão integral", "Pão de hambúrguer", "Pão de hot dog", "Pão sírio",
   "Pão australiano", "Pão de batata", "Pão de leite", "Pão sovado", "Pão italiano", "Pão de fermentação natural",
   "Pão de alho", "Pão caseiro", "Baguete", "Bisnaga", "Bisnaguinha", "Broa de milho", "Brioche", "Ciabatta", "Croissant",
   "Focaccia", "Bagel", "Tortilha", "Wrap", "Rap10", "Torrada", "Waffle", "Panqueca", "Crepe", "Massa de tapioca",
@@ -97,11 +96,11 @@ export const FOODS = [
   "Massa fresca", "Macarrão", "Espaguete", "Talharim", "Fettuccine", "Penne", "Parafuso", "Nhoque", "Nhoque de batata",
   "Ravioli", "Capeletti", "Canelone", "Rondelli", "Tortei", "Lasanha", "Lasanha de carne", "Lasanha de frango",
   "Lasanha bolonhesa", "Lasanha de berinjela", "Massa de lasanha", "Massa de pastel", "Massa de pizza", "Disco de pizza",
-  "Massa folhada", "Massa de torta", "Udon", "Lámen", "Yakisoba",
+  "Massa folhada", "Massa de torta", "Udon", "Lámen", 
 
   // Salgados e petiscos
-  "Pão de queijo", "Pão de queijo recheado", "Chipa", "Coxinha", "Coxinha de frango", "Mini coxinha", "Esfiha",
-  "Esfiha de carne", "Esfiha de queijo", "Empada", "Empadinha", "Empadão", "Pastel", "Pastel de carne", "Pastel de queijo",
+  "Batata smile", "Bolinho de bacalhau", "Nuggets de frango", "Pão de queijo", "Pão de queijo recheado", "Chipa", "Coxinha", "Coxinha de frango", "Mini coxinha", "Esfiha",
+  "Esfiha de carne", "Esfiha de queijo", "Empada", "Empadinha", "Pastel", "Pastel de carne", "Pastel de queijo",
   "Pastel de frango", "Risole", "Quibe", "Quibe recheado", "Enroladinho de salsicha", "Bolinha de queijo", "Croquete",
   "Bolinho de arroz", "Bolinho de mandioca", "Salgadinhos", "Mini pizza", "Pizza", "Pizza de calabresa", "Pizza de muçarela",
   "Pizza margherita", "Pizza de frango", "Pizza portuguesa", "Calzone", "Guioza", "Guioza de carne", "Guioza de frango",
@@ -109,7 +108,7 @@ export const FOODS = [
   "Misto quente", "Sanduíche", "Dadinho de tapioca", "Acarajé", "Tequeño", "Onion rings", "Folhado",
 
   // Comidas prontas
-  "Arroz", "Arroz branco", "Arroz integral", "Arroz de forno", "Arroz carreteiro", "Risoto", "Risoto de cogumelos",
+  "Empadão", "Yakisoba", "Cordon bleu", "Frango à parmegiana", "Frango à milanesa", "Steak de frango", "Empanado de frango", "Arroz", "Arroz branco", "Arroz integral", "Arroz de forno", "Arroz carreteiro", "Risoto", "Risoto de cogumelos",
   "Feijoada", "Feijão tropeiro", "Baião de dois", "Tutu de feijão", "Virado à paulista", "Estrogonofe",
   "Estrogonofe de frango", "Estrogonofe de carne", "Frango (strogonoff)", "Escondidinho", "Escondidinho de carne seca",
   "Escondidinho de frango", "Purê de batata", "Purê de mandioquinha", "Sopa", "Sopa de legumes", "Sopa de feijão",
@@ -136,6 +135,6 @@ export const FOODS = [
 
   // Outros
   "Ração", "Comida do cachorro", "Comida do gato", "Papinha", "Papinha de bebê", "Leite materno", "Fermento", "Fermento fresco",
-  "Massa de pão", "Ovos", "Clara de ovo", "Gema de ovo", "Castanhas", "Nozes", "Amendoim", "Farinha", "Pão ralado",
+  "Ovos", "Clara de ovo", "Gema de ovo", "Castanhas", "Nozes", "Amendoim", "Farinha", 
   "Gordura", "Banha", "Bolsa térmica", "Gelo reutilizável",
 ];
