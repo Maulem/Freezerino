@@ -7,15 +7,38 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == "d4kT46A33gZTfTlcfErrkvUv5mq2";
     }
 
+    function optInt(d, f, lo, hi) {
+      return !(f in d) || d[f] == null || (d[f] is int && d[f] >= lo && d[f] <= hi);
+    }
+
+    // units: one entry per package, the date (ms) it went in, or null if unknown.
     function validItem(d) {
       return d.name is string && d.name.size() > 0 && d.name.size() <= 80
-        && d.place in ["p1", "p2", "p3", "g1", "g2"]
-        && (d.qty == null || (d.qty is int && d.qty >= 0 && d.qty <= 999));
+        && d.place is string && d.place.size() > 0 && d.place.size() <= 60
+        && (!('units' in d) || (d.units is list && d.units.size() <= 500))
+        && optInt(d, 'min', 0, 999)
+        && optInt(d, 'shelfMonths', 1, 60);
     }
 
     match /items/{id} {
       allow read, delete: if isFamily();
       allow create, update: if isFamily() && validItem(request.resource.data);
+    }
+
+    match /places/{id} {
+      allow read, delete: if isFamily();
+      allow create, update: if isFamily()
+        && request.resource.data.label is string
+        && request.resource.data.label.size() > 0 && request.resource.data.label.size() <= 40
+        && request.resource.data.order is number;
+    }
+
+    match /shopping/{id} {
+      allow read, delete: if isFamily();
+      allow create, update: if isFamily()
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 80
+        && request.resource.data.done is bool;
     }
 
     match /meta/{id} {

@@ -12,7 +12,8 @@ Web app em português, feito para usar no celular (adicionar à tela inicial).
 
 | Arquivo | O que é |
 |---|---|
-| `index.html`, `style.css`, `app.js` | O app |
+| `index.html`, `style.css`, `app.js` | O app (abas Freezer, Compras, Prateleiras) |
+| `store.js` | Acesso ao Firebase; em `localhost/?demo` usa dados falsos na memória para testar |
 | `seed.js` | A lista de papel, carregada uma vez no primeiro login |
 | `firestore.rules` | Regras de acesso do Firestore (colar em Firestore → Regras) |
 | `manifest.json`, `icons/` | Ícone e nome na tela inicial |
