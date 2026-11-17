@@ -12,8 +12,9 @@ Mobile web app in Portuguese, meant to be added to the phone's home screen.
 ## Features
 
 - Two freezers (Freezer Andréia, Freezer Zé), each with its own shelves and drawers.
-- The ⓘ next to the freezer switch shows a front-view map of Freezer Andréia (5 door shelves; inside: 3 shelves and
-  2 drawers) with how many foods each spot has. It can create the door shelves in the app with one tap.
+- The ⓘ next to the freezer switch shows a front-view map of Freezer Andréia with how many foods each spot has.
+  Door: 1ª and 2ª shelves, the ice and water dispenser, then 3ª to 5ª (used as two spots, e.g. "Porta 1ª e 2ª").
+  Inside: 3 shelves and 2 drawers. Spots are matched to the shelves in the app by name.
 - One dated entry per package; "−" always takes out the oldest one.
 - Freezer time per food: the name turns yellow with less than half of it left, red with less than 20%.
   A box at the top counts what's expiring and can filter the list to just those foods.

@@ -389,62 +389,55 @@ function fzSwitch(onPick) {
   })));
 }
 
-// Front view of Freezer Andréia (from the photo of 2026-11-17): door on the left with 5 shelves,
-// inside on the right with the ice maker, 3 shelves and 2 drawers. Shelves in the app are matched by name.
+// Front view of Freezer Andréia (from the photo of 2026-11-17). Door on the left, top to bottom: 1ª and 2ª shelves,
+// the ice and water dispenser, then 3ª, 4ª and 5ª (the family uses each block as one spot, e.g. "Porta 1ª e 2ª").
+// Inside on the right: ice maker, 3 shelves, 2 drawers. Shelves in the app are matched by their names.
 function openFreezerMap() {
   const mine = placesIn("andreia");
-  const find = (kind, n) => mine.find(p => {
-    const l = norm(p.label), door = l.includes("porta");
-    const num = Number((l.match(/\d/) || [])[0]);
-    if (num !== n) return false;
-    if (kind === "porta") return door;
-    return !door && l.includes(kind);
-  });
+  const nums = p => (norm(p.label).match(/\d/g) || []).map(Number);
+  const isDoor = p => norm(p.label).includes("porta");
+  // door: every door shelf whose numbers touch the block; inside: the shelf/drawer with that number
+  const findDoor = ns => mine.filter(p => isDoor(p) && nums(p).some(n => ns.includes(n)));
+  const findIn = (kind, n) => mine.filter(p => !isDoor(p) && norm(p.label).includes(kind) && nums(p)[0] === n).slice(0, 1);
   const info = h("p", { class: "fmap-info" }, "Toque numa prateleira para ver o que tem nela.");
-  const slot = (cls, kind, n, label) => {
-    const p = find(kind, n);
-    const list = p ? [...items.values()].filter(d => d.place === p.id) : [];
+  const count = n => n === 1 ? "1 comida" : `${n} comidas`;
+  const slot = (cls, ps, label, inner) => {
+    const lists = ps.map(p => [p, [...items.values()].filter(d => d.place === p.id)]);
+    const total = lists.reduce((a, [, l]) => a + l.length, 0);
     const pick = () => {
       for (const b of document.querySelectorAll(".fslot")) b.classList.toggle("on", b === btn);
       info.textContent = "";
-      if (!p) { info.append(h("b", {}, label), " ainda não existe no app. Toque em Criar prateleiras da porta."); return; }
-      info.append(h("b", {}, p.label + ": "), list.length
-        ? list.map(d => d.name + (d.unknown ? "" : ` (${(d.units || []).length})`)).join(", ")
-        : "vazia.");
+      if (!ps.length) { info.append(h("b", {}, label), " não está na aba Prateleiras."); return; }
+      lists.forEach(([p, list], i) => {
+        if (i) info.append(h("br"));
+        info.append(h("b", {}, p.label + ": "), list.length
+          ? list.map(d => d.name + (d.unknown ? "" : ` (${(d.units || []).length})`)).join(", ")
+          : "vazia.");
+      });
     };
     const btn = h("button", { type: "button", class: "fslot " + cls, onclick: pick },
-      h("b", {}, label), h("small", {}, p ? (list.length ? (list.length === 1 ? "1 comida" : `${list.length} comidas`) : "vazia") : ""));
+      inner || null, h("b", {}, label), h("small", {}, ps.length ? (total ? count(total) : "vazia") : ""));
     return btn;
   };
+  // a block of door bins drawn as stacked bins, one button for the whole block
+  const doorBlock = ns => slot("bins", findDoor(ns), ns.map(n => `${n}ª`).join(ns.length > 2 ? ", " : " e ").replace(/, (\d)ª$/, " e $1ª"),
+    h("span", { class: "fbins", "aria-hidden": "true" }, ns.map(() => h("i"))));
   const door = h("div", { class: "fdoor" },
     h("span", { class: "fcap" }, "Porta"),
-    slot("bin", "porta", 1, "1ª"),
+    doorBlock([1, 2]),
     h("div", { class: "fdisp", "aria-hidden": "true" }, "gelo e água"),
-    [2, 3, 4, 5].map(n => slot("bin", "porta", n, `${n}ª`)));
+    doorBlock([3, 4, 5]));
   const body = h("div", { class: "fbody" },
     h("span", { class: "fcap" }, "Dentro"),
     h("div", { class: "fice", "aria-hidden": "true" }, "máquina de gelo"),
-    [1, 2, 3].map(n => slot("shelf", "prateleira", n, `${n}ª Prateleira`)),
-    [1, 2].map(n => slot("drawer", "gaveta", n, `${n}ª Gaveta`)));
-  // The door shelves didn't exist in the app at first: one tap creates the missing ones.
-  const missing = [1, 2, 3, 4, 5].filter(n => !find("porta", n));
-  const addDoor = () => {
-    let order = mine.at(-1)?.order ?? 0;
-    const ops = missing.map(n => ({ op: "set", c: "places", id: newId(`porta ${n}`), data: { label: `Porta ${n}ª prateleira`, order: ++order, freezer: "andreia" } }));
-    store.batch(ops).catch(fail);
-    closeSheet();
-    toast(missing.length === 1 ? "Prateleira da porta criada" : "Prateleiras da porta criadas");
-    setTimeout(openFreezerMap, 400);
-  };
+    [1, 2, 3].map(n => slot("shelf", findIn("prateleira", n), `${n}ª Prateleira`)),
+    [1, 2].map(n => slot("drawer", findIn("gaveta", n), `${n}ª Gaveta`)));
   showSheet(h("div", { class: "sheet" },
     h("h3", {}, "Freezer Andréia"),
     h("p", { class: "help" }, "Com a porta aberta, de cima para baixo."),
     h("div", { class: "fmap" }, door, body),
     info,
-    h("div", { class: "row" },
-      missing.length ? h("button", { class: "btn primary", type: "button", onclick: addDoor },
-        missing.length === 5 ? "Criar prateleiras da porta" : `Criar ${missing.length} da porta`) : null,
-      h("button", { class: "btn", type: "button", onclick: closeSheet }, "Fechar"))));
+    h("div", { class: "row" }, h("button", { class: "btn", type: "button", onclick: closeSheet }, "Fechar"))));
 }
 
 function alertBox() {
