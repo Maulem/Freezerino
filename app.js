@@ -187,6 +187,11 @@ function startData() {
   const synced = () => { clearTimeout(loadTimer); setStatus(store.demo ? "Modo de teste (dados falsos)" : "Sincronizado com a família", true); };
   const onErr = err => {
     clearTimeout(loadTimer);
+    // Old session after the family account was replaced: back to the login screen.
+    if (err && err.code === "permission-denied" && !store.demo) {
+      store.signOut().finally(() => { $("#loginErr").textContent = "A senha da família mudou. Entre com a senha nova."; });
+      return;
+    }
     setStatus(err && err.code === "permission-denied" ? "Sem permissão. Confira as regras do Firestore." : "Não consegui carregar a lista");
     ready.items = ready.places = ready.shopping = true;
     render();

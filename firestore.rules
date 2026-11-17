@@ -4,7 +4,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function isFamily() {
-      return request.auth != null && request.auth.uid == "d4kT46A33gZTfTlcfErrkvUv5mq2";
+      return request.auth != null && request.auth.uid == "0HzD6Q9KIha2uRtz2dHU1ObkPLY2";
     }
 
     function optInt(d, f, lo, hi) {
