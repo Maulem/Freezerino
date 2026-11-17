@@ -1,12 +1,12 @@
 // Service worker: lets the app open without internet, and shows expiry notifications.
 // Bump VERSION when the list of app files changes.
-const VERSION = "v2";
+const VERSION = "v3";
 const APP = "freezerino-app-" + VERSION;
 const LIBS = "freezerino-libs-v1";      // Firebase SDK + fonts (versioned URLs, never change)
 const FB = "https://www.gstatic.com/firebasejs/10.14.1/";
 
 const APP_FILES = [
-  "./", "index.html", "style.css", "app.js", "store.js", "seed.js", "manifest.json",
+  "./", "index.html", "style.css", "app.js", "store.js", "seed.js", "categories.js", "manifest.json",
   "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png",
 ];
 const LIB_FILES = ["firebase-app.js", "firebase-auth.js", "firebase-firestore.js", "firebase-messaging.js"].map(f => FB + f);

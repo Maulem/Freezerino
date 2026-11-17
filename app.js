@@ -1,5 +1,6 @@
 import { makeStore, DELETE } from "./store.js";
 import { SEED_ITEMS } from "./seed.js";
+import { CATEGORIES, catById, guessCategory, categoryOf } from "./categories.js";
 
 /*
   Data model (Firestore)
@@ -28,7 +29,7 @@ const FREEZERS = [
 ];
 const DAY = 86400000;
 const TITLES = { freezer: "Freezerino", compras: "Compras", historico: "Histórico", prateleiras: "Prateleiras" };
-const PEOPLE = ["Andréia", "Zé"];
+const PEOPLE = ["Henrique", "Andréia", "Zé"];
 
 // Offline support + notifications. Registered before anything else so the app opens without internet.
 const swReady = "serviceWorker" in navigator
@@ -374,7 +375,8 @@ function renderFreezer() {
   const al = alerts();
   const alertIds = new Set([...al.bad, ...al.soon].map(a => a.id));
   const filtering = !!q || alertOnly;
-  const shown = all.filter(it => (!q || norm(it.name).includes(q)) && (!alertOnly || alertIds.has(it.id)));
+  const matchQ = it => norm(it.name).includes(q) || norm(catById(categoryOf(it)).label).includes(q);
+  const shown = all.filter(it => (!q || matchQ(it)) && (!alertOnly || alertIds.has(it.id)));
 
   const ans = $("#answer");
   ans.textContent = "";
@@ -441,7 +443,8 @@ function itemRow(it) {
 
   const row = h("li", { class: "item" + (out ? " out" : "") },
     h("button", { class: "name", type: "button", onclick: () => openItemSheet(it.id), "aria-label": `Editar ${it.name}` },
-      h("span", { class: exp && exp.level !== "ok" ? "lvl-" + exp.level : null }, it.name),
+      h("span", { class: exp && exp.level !== "ok" ? "lvl-" + exp.level : null },
+        h("i", { class: "cat", title: catById(categoryOf(it)).label, "aria-hidden": "true" }, catById(categoryOf(it)).icon), it.name),
       tags.length ? h("div", { class: "tags" }, tags) : null,
       expText,
       meta ? h("em", {}, meta) : null,
@@ -529,6 +532,14 @@ function openItemSheet(id, opts = {}) {
   const nameIn = h("input", { type: "text", id: "f-name", value: editing?.name || opts.name || "", placeholder: "Ex: Peito de frango", autocomplete: "off" });
   const shelfSel = shelfSelect(editing ? editing.shelfMonths : "shelfMonths" in opts ? opts.shelfMonths : 3);
   const minIn = h("input", { type: "number", id: "f-min", inputmode: "numeric", min: "1", max: "999", value: editing?.min ?? opts.min ?? "", placeholder: "Não avisar" });
+  // Category: "" = guess from the name (shown live), or one picked by hand.
+  const catSel = h("select", { id: "f-cat" });
+  const autoOpt = h("option", { value: "" });
+  catSel.append(autoOpt, ...CATEGORIES.map(c => h("option", { value: c.id }, `${c.icon} ${c.label}`)));
+  catSel.value = editing?.cat || opts.cat || "";
+  const drawAuto = () => { const g = catById(guessCategory(nameIn.value)); autoOpt.textContent = `${g.icon} ${g.label} (automático)`; };
+  nameIn.addEventListener("input", drawAuto);
+  drawAuto();
   const noteIn = h("input", { type: "text", id: "f-note", value: editing?.note || "", placeholder: "Opcional (ex: porção de 500 g)", autocomplete: "off" });
 
   const chips = h("div", { class: "chipgroups" });
@@ -585,10 +596,11 @@ function openItemSheet(id, opts = {}) {
     const min = Number.isFinite(minRaw) && minRaw > 0 ? Math.min(999, minRaw) : null;
     const shelfMonths = shelfNow();
     const note = noteIn.value.trim();
+    const cat = catSel.value || null;
     const now = Date.now();
 
     if (editing) {
-      const doc = { name, place, units, unknown: unknown && units.length === 0, shelfMonths, min, note, addedAt: editing.addedAt ?? null, updatedAt: now };
+      const doc = { name, place, units, unknown: unknown && units.length === 0, shelfMonths, min, note, cat, addedAt: editing.addedAt ?? null, updatedAt: now };
       const before = Array.isArray(editing.units) ? editing.units.length : 0;
       if (editing.unknown && units.length) logEvent("count", doc, id, place, units.length);
       else if (units.length !== before) logEvent(units.length > before ? "add" : "take", doc, id, place, Math.abs(units.length - before));
@@ -609,7 +621,7 @@ function openItemSheet(id, opts = {}) {
       if (same) {
         const [sid, sd] = same;
         const merged = sortUnits([...(Array.isArray(sd.units) ? sd.units : []), ...fresh]);
-        const doc = { ...sd, units: merged, unknown: false, shelfMonths: shelfMonths ?? sd.shelfMonths ?? null, min: min ?? sd.min ?? null, updatedAt: now };
+        const doc = { ...sd, units: merged, unknown: false, shelfMonths: shelfMonths ?? sd.shelfMonths ?? null, min: min ?? sd.min ?? null, cat: cat ?? sd.cat ?? null, updatedAt: now };
         if (note) doc.note = note;
         store.set("items", sid, doc).catch(fail);
         if (n) logEvent(kind, doc, sid, place, n);
@@ -617,7 +629,7 @@ function openItemSheet(id, opts = {}) {
         toast(opts.fromShop ? `${sd.name} guardado (${merged.length}) e tirado da lista` : `Somado ao ${sd.name} que já tinha (${merged.length})`);
       } else {
         const nid = newId(name);
-        const doc = { name, place, units: fresh, unknown: false, shelfMonths, min, note, addedAt: now, updatedAt: now };
+        const doc = { name, place, units: fresh, unknown: false, shelfMonths, min, note, cat, addedAt: now, updatedAt: now };
         store.set("items", nid, doc).catch(fail);
         logEvent(opts.fromShop ? "bought" : "new", doc, nid, place, n);
         syncShopping(nid, doc, n);
@@ -637,6 +649,7 @@ function openItemSheet(id, opts = {}) {
   const form = h("form", { class: "sheet", onsubmit: save },
     h("h3", {}, editing ? "Editar comida" : opts.fromShop ? "Guardar no freezer" : "Colocar no freezer"),
     field("Comida", nameIn),
+    field("Tipo", catSel),
     h("div", { class: "f" }, h("span", { class: "lbl" }, "Onde"), chips),
     editing
       ? h("div", { class: "f" }, h("span", { class: "lbl" }, "Entradas (uma por pacote)"), unitList,
@@ -672,7 +685,12 @@ function renderShopping() {
       "Escreva acima o que precisa, ou defina em cada comida “Comprar quando tiver menos de” para ela entrar aqui sozinha."));
     return;
   }
-  if (open.length) box.append(h("ul", { class: "card" }, open.map(shopRow)));
+  if (open.length) {
+    box.append(h("ul", { class: "card" }, open.map(shopRow)));
+    box.append(h("div", { class: "share" },
+      h("button", { class: "btn wa", type: "button", onclick: () => shareList(open, "whatsapp") }, waIcon(), "Enviar no WhatsApp"),
+      navigator.share ? h("button", { class: "btn", type: "button", onclick: () => shareList(open, "share") }, "Outro app") : null));
+  }
   else box.append(h("div", { class: "state" }, h("strong", {}, "Tudo comprado"), "Nada pendente na lista."));
   if (done.length) {
     box.append(h("div", { class: "subhead" }, h("h2", {}, `Comprados (${done.length})`),
@@ -708,6 +726,24 @@ function svgCheck() {
   return svg;
 }
 
+// Shopping list as a plain message, e.g. for someone at the market who doesn't use the app.
+function shareList(open, how) {
+  const lines = open.map(s => `• ${(s.itemId && items.get(s.itemId)?.name) || s.name}`);
+  const text = ["🛒 Lista de compras", "", ...lines, "", "— Freezerino"].join("\n");
+  if (how === "share" && navigator.share) { navigator.share({ text }).catch(() => {}); return; }
+  window.open("https://wa.me/?text=" + encodeURIComponent(text), "_blank", "noopener");
+}
+
+function waIcon() {
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("viewBox", "0 0 24 24"); svg.setAttribute("aria-hidden", "true");
+  const p = document.createElementNS(ns, "path");
+  p.setAttribute("d", "M12 3.2a8.7 8.7 0 0 0-7.5 13.1L3.3 20.8l4.6-1.2A8.7 8.7 0 1 0 12 3.2zm4.9 12.3c-.2.6-1.2 1.2-1.7 1.2-.4.1-1 .1-1.6-.1a14 14 0 0 1-5.6-4.6c-.8-1-1.2-2.2-1.2-3.1 0-1 .5-1.6.8-1.8.2-.2.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 1.9c.1.2.1.4 0 .5l-.3.5-.4.4c-.1.1-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.3 2.4 1.5.3.1.5.1.6-.1l.9-1c.2-.3.4-.2.6-.1l1.8.9c.3.1.5.2.5.3.1.1.1.6-.1 1.2z");
+  svg.append(p);
+  return svg;
+}
+
 // A bought item arrived home: open "Guardar no freezer" already filled in; saving takes it off the list.
 function storeFromShop(s) {
   let it = s.itemId ? items.get(s.itemId) : null;
@@ -718,7 +754,7 @@ function storeFromShop(s) {
   }
   openItemSheet(null, {
     name: it?.name || s.name, place: it?.place, fromShop: s.id,
-    ...(it ? { shelfMonths: it.shelfMonths ?? null, min: it.min ?? null } : {}),
+    ...(it ? { shelfMonths: it.shelfMonths ?? null, min: it.min ?? null, cat: it.cat ?? null } : {}),
   });
 }
 

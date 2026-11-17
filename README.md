@@ -18,6 +18,9 @@ Mobile web app in Portuguese, meant to be added to the phone's home screen.
 - Shopping list tab; foods with a minimum ("Comprar quando tiver menos de") are added to it automatically.
 - History tab: who put in, took out or stored what, and when (each phone says once who uses it). Kept for 6 months.
 - Bought items on the shopping list have a "Guardar" button that puts them in the freezer and takes them off the list.
+- Food categories with an icon (meat, chicken, fish, vegetables, breads, ready meals…), guessed from the name by the
+  keyword list in `categories.js`; can be changed by hand. Searching a category name ("carne") lists all of it.
+- "Enviar no WhatsApp" on the shopping list sends what's left to buy as a message (free, uses a normal wa.me link).
 - Opens without internet: a service worker (`sw.js`) keeps a copy of the app, and Firestore keeps the data offline.
   Changes made offline sync when the connection comes back.
 - Expiry notifications: each phone turns them on with the bell at the top. Every day at 9:00 (Brasília) a GitHub
@@ -31,6 +34,7 @@ Mobile web app in Portuguese, meant to be added to the phone's home screen.
 |---|---|
 | `index.html`, `style.css`, `app.js` | The app (Freezer, Compras, Prateleiras tabs) |
 | `store.js` | Firebase access; on `localhost/?demo` it uses fake in-memory data for testing |
+| `categories.js` | Categories and the keywords used to guess them |
 | `seed.js` | The original paper list, loaded once on the first login |
 | `firestore.rules` | Firestore access rules (paste into Firestore → Rules) |
 | `manifest.json`, `icons/` | Home screen icon and name |
