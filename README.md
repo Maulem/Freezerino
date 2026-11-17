@@ -18,8 +18,12 @@ Mobile web app in Portuguese, meant to be added to the phone's home screen.
 - Shopping list tab; foods with a minimum ("Comprar quando tiver menos de") are added to it automatically.
 - History tab: who put in, took out or stored what, and when (each phone says once who uses it). Kept for 6 months.
 - Bought items on the shopping list have a "Guardar" button that puts them in the freezer and takes them off the list.
-- Food categories with an icon (meat, chicken, fish, vegetables, breads, ready meals…), guessed from the name by the
-  keyword list in `categories.js`; can be changed by hand. Searching a category name ("carne") lists all of it.
+- 17 food categories with an icon (beef, pork, chicken, fish, cold cuts, cheese, beans, spices, pasta, snacks, breads,
+  sweets, drinks, vegetables, fruit, ready meals, other), guessed from the name by the keyword list in `categories.js`.
+  A category picked by hand is remembered for that food name (shared in `meta/cats`); for unknown foods the first word
+  is learned too. Searching a category name ("carne") lists all of it.
+- Suggested freezer time per category (with exceptions such as ground meat 3 months, whole chicken 12), filled in
+  automatically for new foods until someone picks a time by hand.
 - "Enviar no WhatsApp" on the shopping list sends what's left to buy as a message (free, uses a normal wa.me link).
 - Opens without internet: a service worker (`sw.js`) keeps a copy of the app, and Firestore keeps the data offline.
   Changes made offline sync when the connection comes back.

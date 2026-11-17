@@ -1,6 +1,6 @@
 import { makeStore, DELETE } from "./store.js";
 import { SEED_ITEMS } from "./seed.js";
-import { CATEGORIES, catById, guessCategory, categoryOf } from "./categories.js";
+import { CATEGORIES, catById, guessCategory, categoryOf, setLearned, suggestMonths, clean as cleanName } from "./categories.js";
 
 /*
   Data model (Firestore)
@@ -43,6 +43,7 @@ let places = [];
 let shopping = new Map();
 let devices = new Map();
 let log = [];
+let lastLearned = {};   // meta/cats: { cleaned food name: category picked by hand }
 let logWho = null;     // history filter by person
 const ready = { items: false, places: false, shopping: false };
 const onceDone = new Set();
@@ -219,6 +220,8 @@ function startData() {
   }, onErr));
   subs.push(store.listen("shopping", m => { shopping = m; ready.shopping = true; render(); }, onErr));
   subs.push(store.listen("devices", m => { devices = m; }, () => {}));
+  // categories the family picked by hand, so the same food name is sorted the same way next time
+  subs.push(store.listen("meta", m => { lastLearned = m.get("cats")?.map || {}; setLearned(lastLearned); render(); }, () => {}));
   subs.push(store.listen("log", m => {
     log = [...m].map(([id, d]) => ({ id, ...d })).sort((a, b) => b.at - a.at);
     if (tab === "historico") render();
@@ -538,8 +541,22 @@ function openItemSheet(id, opts = {}) {
   catSel.append(autoOpt, ...CATEGORIES.map(c => h("option", { value: c.id }, `${c.icon} ${c.label}`)));
   catSel.value = editing?.cat || opts.cat || "";
   const drawAuto = () => { const g = catById(guessCategory(nameIn.value)); autoOpt.textContent = `${g.icon} ${g.label} (automático)`; };
-  nameIn.addEventListener("input", drawAuto);
-  drawAuto();
+
+  // Suggested freezer time from the category. New foods follow it until someone picks a time by hand.
+  let shelfTouched = !!editing || "shelfMonths" in opts;
+  const shelfHelp = h("span", { class: "help" });
+  const suggest = () => {
+    drawAuto();
+    const name = nameIn.value.trim();
+    if (!name) { shelfHelp.textContent = ""; return; }
+    const c = catById(catSel.value || guessCategory(name));
+    const m = suggestMonths(name, catSel.value || null);
+    const label = SHELF_OPTIONS.find(([v]) => v === m)?.[1] || `${m} meses`;
+    shelfHelp.textContent = `Sugerido para ${c.icon} ${c.label}: ${label}`;
+    if (!shelfTouched) { shelfSel.value = String(m); shelfSel.dispatchEvent(new Event("change")); }
+  };
+  nameIn.addEventListener("input", suggest);
+  catSel.addEventListener("change", suggest);
   const noteIn = h("input", { type: "text", id: "f-note", value: editing?.note || "", placeholder: "Opcional (ex: porção de 500 g)", autocomplete: "off" });
 
   const chips = h("div", { class: "chipgroups" });
@@ -575,6 +592,7 @@ function openItemSheet(id, opts = {}) {
     });
   };
   shelfSel.addEventListener("change", drawUnits);
+  shelfSel.addEventListener("change", e => { if (e.isTrusted) shelfTouched = true; });
 
   const addN = h("input", { type: "number", id: "f-n", inputmode: "numeric", min: "1", max: "50", value: "1", "aria-label": "Quantos" });
   const addDate = h("input", { type: "date", id: "f-date", value: todayInput(), max: todayInput(), "aria-label": "Data que entrou" });
@@ -597,6 +615,20 @@ function openItemSheet(id, opts = {}) {
     const shelfMonths = shelfNow();
     const note = noteIn.value.trim();
     const cat = catSel.value || null;
+    // Picked a category by hand: remember it for this food name (shared with the whole family).
+    if (cat) {
+      const key = cleanName(name);
+      const known = { ...(lastLearned || {}) };
+      let changed = false;
+      const learn = k => { if (k && known[k] !== cat) { known[k] = cat; changed = true; } };
+      // A food the app didn't recognise at all: also learn its first word ("Kombu desidratado" teaches "kombu").
+      if (guessCategory(name) === "outros") {
+        const first = key.split(" ")[0];
+        if (first.length >= 3) learn(first);
+      }
+      learn(key);
+      if (changed) { lastLearned = known; setLearned(known); store.set("meta", "cats", { map: known }).catch(() => {}); }
+    }
     const now = Date.now();
 
     if (editing) {
@@ -659,12 +691,14 @@ function openItemSheet(id, opts = {}) {
     h("div", { class: "two" },
       field("Validade no freezer", shelfSel),
       field("Comprar quando tiver menos de", minIn)),
+    shelfHelp,
     field("Observação", noteIn),
     h("div", { class: "row" },
       h("button", { class: "btn", type: "button", onclick: closeSheet }, "Cancelar"),
       h("button", { class: "btn primary", type: "submit" }, editing ? "Salvar" : opts.fromShop ? "Guardar" : "Adicionar")),
     delBtn ? h("div", { class: "row" }, delBtn) : null,
   );
+  suggest();
   if (editing) drawUnits();
   showSheet(form);
   if (!editing) setTimeout(() => nameIn.focus(), 50);
