@@ -55,8 +55,10 @@ async function firebaseStore() {
     async dropPushToken() {
       try { const M = await import(`https://www.gstatic.com/firebasejs/${V}/firebase-messaging.js`); await M.deleteToken(M.getMessaging(app)); } catch {}
     },
-    listen(c, onData, onErr) {
-      return F.onSnapshot(F.collection(db, c), { includeMetadataChanges: true }, snap => {
+    // q = { order, limit }: newest first, only the last `limit` documents (used for the history log).
+    listen(c, onData, onErr, q) {
+      const src = q ? F.query(F.collection(db, c), F.orderBy(q.order, "desc"), F.limit(q.limit)) : F.collection(db, c);
+      return F.onSnapshot(src, { includeMetadataChanges: true }, snap => {
         const m = new Map();
         for (const d of snap.docs) m.set(d.id, d.data());
         onData(m, { fromCache: snap.metadata.fromCache });
@@ -95,7 +97,8 @@ function demoStore() {
   colls.items.set("peixe-teste", { name: "Filé de peixe", place: "p1", units: [now - 52 * day], unknown: false, shelfMonths: 2, min: null, note: "", addedAt: now - 52 * day, updatedAt: now });
   colls.meta.set("seed", { at: Date.now() });
   colls.devices = new Map();
-  const listeners = { items: [], places: [], shopping: [], meta: [], devices: [] };
+  colls.log = new Map();
+  const listeners = { items: [], places: [], shopping: [], meta: [], devices: [], log: [] };
   const emit = c => setTimeout(() => {
     for (const l of listeners[c]) l(new Map([...colls[c]].map(([k, v]) => [k, structuredClone(v)])), { fromCache: false });
   }, 0);

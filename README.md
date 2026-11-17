@@ -16,6 +16,8 @@ Mobile web app in Portuguese, meant to be added to the phone's home screen.
 - Freezer time per food: the name turns yellow with less than half of it left, red with less than 20%.
   A box at the top counts what's expiring and can filter the list to just those foods.
 - Shopping list tab; foods with a minimum ("Comprar quando tiver menos de") are added to it automatically.
+- History tab: who put in, took out or stored what, and when (each phone says once who uses it). Kept for 6 months.
+- Bought items on the shopping list have a "Guardar" button that puts them in the freezer and takes them off the list.
 - Opens without internet: a service worker (`sw.js`) keeps a copy of the app, and Firestore keeps the data offline.
   Changes made offline sync when the connection comes back.
 - Expiry notifications: each phone turns them on with the bell at the top. Every day at 9:00 (Brasília) a GitHub

@@ -129,12 +129,27 @@ function backup(dir, data) {
   console.log(`Backup written to ${dir}`);
 }
 
+/* ---------- history cleanup ---------- */
+
+// Keep the "who took what" history for 6 months (older entries stay in the backup repo's git history).
+async function pruneLog() {
+  const cutoff = Date.now() - 183 * DAY;
+  const old = await db.collection("log").where("at", "<", cutoff).get();
+  for (let i = 0; i < old.docs.length; i += 400) {
+    const b = db.batch();
+    old.docs.slice(i, i + 400).forEach(d => b.delete(d.ref));
+    await b.commit();
+  }
+  if (old.size) console.log(`Removed ${old.size} history entries older than 6 months.`);
+}
+
 /* ---------- main ---------- */
 
 if (MODE === "test") {
   await send("Freezerino", "Teste: os avisos de validade estão funcionando.", "freezerino-test");
 } else {
-  const [items, places, shopping, meta] = await Promise.all(["items", "places", "shopping", "meta"].map(all));
-  if (process.env.BACKUP_DIR) backup(process.env.BACKUP_DIR, { items, places, shopping, meta });
+  await pruneLog();
+  const [items, places, shopping, meta, log] = await Promise.all(["items", "places", "shopping", "meta", "log"].map(all));
+  if (process.env.BACKUP_DIR) backup(process.env.BACKUP_DIR, { items, places, shopping, meta, log });
   await notifyExpiry(items, places);
 }

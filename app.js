@@ -27,7 +27,8 @@ const FREEZERS = [
   { id: "ze", label: "Freezer Zé" },
 ];
 const DAY = 86400000;
-const TITLES = { freezer: "Freezerino", compras: "Compras", prateleiras: "Prateleiras" };
+const TITLES = { freezer: "Freezerino", compras: "Compras", historico: "Histórico", prateleiras: "Prateleiras" };
+const PEOPLE = ["Andréia", "Zé"];
 
 // Offline support + notifications. Registered before anything else so the app opens without internet.
 const swReady = "serviceWorker" in navigator
@@ -40,6 +41,8 @@ let items = new Map();
 let places = [];
 let shopping = new Map();
 let devices = new Map();
+let log = [];
+let logWho = null;     // history filter by person
 const ready = { items: false, places: false, shopping: false };
 const onceDone = new Set();
 const pending = {};      // itemId -> { units, timer }
@@ -215,13 +218,18 @@ function startData() {
   }, onErr));
   subs.push(store.listen("shopping", m => { shopping = m; ready.shopping = true; render(); }, onErr));
   subs.push(store.listen("devices", m => { devices = m; }, () => {}));
+  subs.push(store.listen("log", m => {
+    log = [...m].map(([id, d]) => ({ id, ...d })).sort((a, b) => b.at - a.at);
+    if (tab === "historico") render();
+  }, () => {}, { order: "at", limit: 300 }));
+  if (!lsGet("who")) setTimeout(askWho, 400);
   refreshPush();
 }
 
 function stopData() {
   subs.forEach(u => u && u());
   subs = [];
-  items = new Map(); places = []; shopping = new Map(); devices = new Map();
+  items = new Map(); places = []; shopping = new Map(); devices = new Map(); log = [];
   ready.items = ready.places = ready.shopping = false;
   onceDone.clear();
 }
@@ -297,6 +305,7 @@ function render() {
   $("#freezerView").hidden = tab !== "freezer";
   $("#shopView").hidden = tab !== "compras";
   $("#placesView").hidden = tab !== "prateleiras";
+  $("#logView").hidden = tab !== "historico";
   $("#add").hidden = $("#appView").hidden || tab !== "freezer";
   const open = [...shopping.values()].filter(s => !s.done).length;
   const badge = $("#shopBadge");
@@ -308,6 +317,7 @@ function render() {
 
   if (tab === "freezer") renderFreezer();
   else if (tab === "compras") renderShopping();
+  else if (tab === "historico") renderLog();
   else renderPlaces();
 }
 
@@ -465,6 +475,10 @@ function flush(id) {
   if (!p) return;
   delete pending[id];
   const it = items.get(id);
+  if (it) {
+    const d = p.units.length - (Array.isArray(it.units) ? it.units.length : 0);
+    if (d) logEvent(d > 0 ? "add" : "take", it, id, it.place, Math.abs(d));
+  }
   // optimistic: keep showing the new value until the snapshot arrives
   if (it) items.set(id, { ...it, units: p.units, unknown: false });
   store.update("items", id, { units: p.units, unknown: false, updatedAt: Date.now() }).catch(fail);
@@ -473,6 +487,8 @@ function flush(id) {
 }
 
 function removeItem(id) {
+  const it = items.get(id);
+  if (it) logEvent("del", it, id, it.place, 0);
   store.del("items", id).catch(fail);
   toast("Removido da lista");
 }
@@ -497,21 +513,22 @@ function shelfSelect(value) {
   return sel;
 }
 
-function openItemSheet(id) {
+// opts (adding only): { name, place, shelfMonths, min, fromShop } — used by "Guardar" on the shopping list.
+function openItemSheet(id, opts = {}) {
   const editing = id ? items.get(id) : null;
   if (id && !editing) return;
-  if (!editing && !placesIn(fz).length) { toast(`Crie uma prateleira no ${fzLabel(fz)} primeiro.`); location.hash = "#prateleiras"; return; }
+  if (!editing && !opts.place && !placesIn(fz).length) { toast(`Crie uma prateleira no ${fzLabel(fz)} primeiro.`); location.hash = "#prateleiras"; return; }
   if (!places.length) { toast("Crie uma prateleira primeiro."); location.hash = "#prateleiras"; return; }
   if (pending[id]) { clearTimeout(pending[id].timer); flush(id); }
 
-  let place = editing?.place || placesIn(fz)[0].id;
+  let place = editing?.place || (opts.place && places.find(p => p.id === opts.place) ? opts.place : placesIn(fz)[0]?.id || places[0].id);
   let units = editing ? sortUnits(unitsOf(id)) : [];
   let unknown = editing ? !!editing.unknown : false;
   let armed = false;
 
-  const nameIn = h("input", { type: "text", id: "f-name", value: editing?.name || "", placeholder: "Ex: Peito de frango", autocomplete: "off" });
-  const shelfSel = shelfSelect(editing ? editing.shelfMonths : 3);
-  const minIn = h("input", { type: "number", id: "f-min", inputmode: "numeric", min: "1", max: "999", value: editing?.min ?? "", placeholder: "Não avisar" });
+  const nameIn = h("input", { type: "text", id: "f-name", value: editing?.name || opts.name || "", placeholder: "Ex: Peito de frango", autocomplete: "off" });
+  const shelfSel = shelfSelect(editing ? editing.shelfMonths : "shelfMonths" in opts ? opts.shelfMonths : 3);
+  const minIn = h("input", { type: "number", id: "f-min", inputmode: "numeric", min: "1", max: "999", value: editing?.min ?? opts.min ?? "", placeholder: "Não avisar" });
   const noteIn = h("input", { type: "text", id: "f-note", value: editing?.note || "", placeholder: "Opcional (ex: porção de 500 g)", autocomplete: "off" });
 
   const chips = h("div", { class: "chipgroups" });
@@ -572,6 +589,10 @@ function openItemSheet(id) {
 
     if (editing) {
       const doc = { name, place, units, unknown: unknown && units.length === 0, shelfMonths, min, note, addedAt: editing.addedAt ?? null, updatedAt: now };
+      const before = Array.isArray(editing.units) ? editing.units.length : 0;
+      if (editing.unknown && units.length) logEvent("count", doc, id, place, units.length);
+      else if (units.length !== before) logEvent(units.length > before ? "add" : "take", doc, id, place, Math.abs(units.length - before));
+      if (place !== editing.place) logEvent("move", doc, id, place, 0);
       store.set("items", id, doc).catch(fail);
       items.set(id, doc);
       syncShopping(id, doc, units.length);
@@ -580,6 +601,9 @@ function openItemSheet(id) {
       const n = Math.min(50, Math.max(0, parseInt(addN.value, 10) || 0));
       const ts = addDate.value ? fromInput(addDate.value) : now;
       const fresh = Array(n).fill(ts);
+      // From the shopping list: take the bought entry off first; syncShopping puts it back if still below the minimum.
+      if (opts.fromShop) { shopping.delete(opts.fromShop); store.del("shopping", opts.fromShop).catch(fail); }
+      const kind = opts.fromShop ? "bought" : "add";
       // Same food on the same shelf? Add to it instead of making a duplicate.
       const same = [...items.entries()].find(([, d]) => d.place === place && norm(d.name) === norm(name));
       if (same) {
@@ -588,14 +612,16 @@ function openItemSheet(id) {
         const doc = { ...sd, units: merged, unknown: false, shelfMonths: shelfMonths ?? sd.shelfMonths ?? null, min: min ?? sd.min ?? null, updatedAt: now };
         if (note) doc.note = note;
         store.set("items", sid, doc).catch(fail);
+        if (n) logEvent(kind, doc, sid, place, n);
         syncShopping(sid, doc, merged.length);
-        toast(`Somado ao ${sd.name} que já tinha (${merged.length})`);
+        toast(opts.fromShop ? `${sd.name} guardado (${merged.length}) e tirado da lista` : `Somado ao ${sd.name} que já tinha (${merged.length})`);
       } else {
         const nid = newId(name);
         const doc = { name, place, units: fresh, unknown: false, shelfMonths, min, note, addedAt: now, updatedAt: now };
         store.set("items", nid, doc).catch(fail);
+        logEvent(opts.fromShop ? "bought" : "new", doc, nid, place, n);
         syncShopping(nid, doc, n);
-        toast(`${name} na ${placeFull(place)}`);
+        toast(opts.fromShop ? `${name} guardado na ${placeFull(place)} e tirado da lista` : `${name} na ${placeFull(place)}`);
       }
     }
     closeSheet();
@@ -609,7 +635,7 @@ function openItemSheet(id) {
   }, "Remover do freezer") : null;
 
   const form = h("form", { class: "sheet", onsubmit: save },
-    h("h3", {}, editing ? "Editar comida" : "Colocar no freezer"),
+    h("h3", {}, editing ? "Editar comida" : opts.fromShop ? "Guardar no freezer" : "Colocar no freezer"),
     field("Comida", nameIn),
     h("div", { class: "f" }, h("span", { class: "lbl" }, "Onde"), chips),
     editing
@@ -623,7 +649,7 @@ function openItemSheet(id) {
     field("Observação", noteIn),
     h("div", { class: "row" },
       h("button", { class: "btn", type: "button", onclick: closeSheet }, "Cancelar"),
-      h("button", { class: "btn primary", type: "submit" }, editing ? "Salvar" : "Adicionar")),
+      h("button", { class: "btn primary", type: "submit" }, editing ? "Salvar" : opts.fromShop ? "Guardar" : "Adicionar")),
     delBtn ? h("div", { class: "row" }, delBtn) : null,
   );
   if (editing) drawUnits();
@@ -668,6 +694,7 @@ function shopRow(s) {
     h("button", { class: "tick", type: "button", "aria-pressed": String(!!s.done), "aria-label": s.done ? `Desmarcar ${name}` : `Marcar ${name} como comprado`, onclick: toggle },
       h("span", { "aria-hidden": "true" }, svgCheck())),
     h("button", { class: "what", type: "button", onclick: toggle }, h("span", {}, name), sub ? h("small", {}, sub) : null),
+    s.done ? h("button", { class: "store", type: "button", onclick: () => storeFromShop(s) }, "Guardar") : null,
     h("button", { class: "x", type: "button", "aria-label": `Tirar ${name} da lista`, onclick: () => store.del("shopping", s.id).catch(fail) }, "×"));
 }
 
@@ -679,6 +706,20 @@ function svgCheck() {
   p.setAttribute("d", "M5 12.5l4.5 4.5L19 7.5");
   svg.append(p);
   return svg;
+}
+
+// A bought item arrived home: open "Guardar no freezer" already filled in; saving takes it off the list.
+function storeFromShop(s) {
+  let it = s.itemId ? items.get(s.itemId) : null;
+  if (!it) {
+    // manual entry: same food already in a freezer? use its shelf and settings (prefer the freezer on screen)
+    const same = [...items.values()].filter(d => norm(d.name) === norm(s.name));
+    it = same.find(d => itemFz(d) === fz) || same[0] || null;
+  }
+  openItemSheet(null, {
+    name: it?.name || s.name, place: it?.place, fromShop: s.id,
+    ...(it ? { shelfMonths: it.shelfMonths ?? null, min: it.min ?? null } : {}),
+  });
 }
 
 function clearDone() {
@@ -762,6 +803,86 @@ function openPlaceSheet(id) {
   setTimeout(() => nameIn.focus(), 50);
 }
 
+/* ---------- who is using this phone + history ---------- */
+
+const me = () => lsGet("who") || "Alguém";
+
+function logEvent(kind, it, itemId, place, n) {
+  if (!it) return;
+  const at = Date.now();
+  store.set("log", `${at}-${Math.random().toString(36).slice(2, 7)}`, {
+    at, who: me(), kind, item: it.name, itemId, n, place: placeFull(place),
+  }).catch(e => console.warn("log", e));
+}
+
+function askWho() {
+  if ($("#sheetRoot").children.length) { setTimeout(askWho, 1500); return; }   // don't cover another sheet
+  const cur = lsGet("who") || "";
+  const other = h("input", { type: "text", id: "f-who", value: PEOPLE.includes(cur) ? "" : cur, placeholder: "Outro nome", autocomplete: "off", maxlength: "40" });
+  const pick = name => {
+    name = name.trim().slice(0, 40);
+    if (!name) { other.focus(); return; }
+    lsSet("who", name);
+    if (!lsGet("deviceName")) lsSet("deviceName", name);
+    closeSheet(); render(); toast(`Olá, ${name}!`);
+  };
+  showSheet(h("form", { class: "sheet", onsubmit: e => { e.preventDefault(); pick(other.value); } },
+    h("h3", {}, "Quem usa este celular?"),
+    h("p", { class: "help" }, "Aparece no histórico de quem colocou e tirou cada comida."),
+    h("div", { class: "chips" }, PEOPLE.map(p => h("button", { class: "chip", type: "button", "aria-pressed": String(cur === p), onclick: () => pick(p) }, p))),
+    h("div", { class: "addunit who" }, other, h("button", { class: "btn primary", type: "submit" }, "Sou eu"))));
+}
+
+// [text before the food name, text after it]
+const KIND_TEXT = {
+  add: n => [`colocou ${n}`, ""], take: n => [`tirou ${n}`, ""], new: n => [n ? `colocou ${n}` : "criou", " (nova)"],
+  bought: n => [`guardou ${n}`, " (comprado)"], count: n => ["contou", `: tem ${n}`], del: () => ["apagou", " da lista"],
+  move: () => ["mudou", " para"],
+};
+
+function dayLabel(ts) {
+  const d = daysBetween(ts, Date.now());
+  if (d === 0) return "Hoje";
+  if (d === 1) return "Ontem";
+  return new Date(ts).toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
+}
+
+function renderLog() {
+  const people = [...new Set(log.map(e => e.who))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  if (logWho && !people.includes(logWho)) logWho = null;
+  const chip = (label, val) => h("button", { class: "chip", type: "button", "aria-pressed": String(logWho === val), onclick: () => { logWho = val; render(); } }, label);
+  $("#logFilter").replaceChildren(
+    h("div", { class: "logtop" },
+      people.length > 1 ? h("div", { class: "chips" }, chip("Todos", null), people.map(p => chip(p, p))) : h("span"),
+      h("button", { class: "ghost", type: "button", onclick: askWho }, `Você: ${me()}`)));
+
+  const box = $("#logList");
+  box.textContent = "";
+  const shown = log.filter(e => !logWho || e.who === logWho);
+  if (!shown.length) {
+    box.append(h("div", { class: "state" }, h("strong", {}, "Nada no histórico ainda"),
+      "Cada vez que alguém coloca, tira ou guarda uma comida, aparece aqui com o nome e a hora."));
+    return;
+  }
+  let day = null, ul = null;
+  for (const e of shown) {
+    const dl = dayLabel(e.at);
+    if (dl !== day) {
+      day = dl;
+      box.append(h("h2", { class: "logday" }, dl));
+      ul = h("ul", { class: "card" });
+      box.append(ul);
+    }
+    const [what, after] = (KIND_TEXT[e.kind] || (() => [e.kind, ""]))(e.n);
+    const time = new Date(e.at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    ul.append(h("li", { class: "logrow " + (e.kind === "take" || e.kind === "del" ? "out" : "in") },
+      h("span", { class: "sign", "aria-hidden": "true" }, e.kind === "take" || e.kind === "del" ? "−" : e.kind === "move" || e.kind === "count" ? "•" : "+"),
+      h("div", {},
+        h("span", {}, h("b", {}, e.who), ` ${what} `, h("b", {}, e.item), after, e.kind === "move" ? ` ${e.place}` : ""),
+        h("small", {}, e.kind === "move" || !e.place ? time : `${time} · ${e.place}`))));
+  }
+}
+
 /* ---------- expiry notifications ---------- */
 
 const lsGet = k => { try { return localStorage.getItem(k); } catch { return null; } };
@@ -815,7 +936,7 @@ async function refreshPush() {
 
 function openBellSheet() {
   const st = pushState();
-  const nameIn = h("input", { type: "text", id: "f-dev", value: lsGet("deviceName") || "", placeholder: "Ex: Celular da Andréia", autocomplete: "off", maxlength: "40" });
+  const nameIn = h("input", { type: "text", id: "f-dev", value: lsGet("deviceName") || lsGet("who") || "", placeholder: "Ex: Celular da Andréia", autocomplete: "off", maxlength: "40" });
   const others = [...devices.entries()].filter(([id]) => id !== deviceId()).map(([, d]) => d.name || "Celular");
   const msg = h("p", { class: "help" });
   const body = [];
