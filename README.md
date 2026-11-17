@@ -1,34 +1,46 @@
 # Freezerino
 
-Lista dos freezers da família (Andréia e Zé): o que tem em cada prateleira e gaveta, com quantidades, datas de entrada e aviso de validade.
-Web app em português, feito para usar no celular (adicionar à tela inicial).
+The family's freezer list (Andréia and Zé): what's on each shelf and in each drawer, how many,
+when each package went in and when it expires. Also a shared shopping list.
+Mobile web app in Portuguese, meant to be added to the phone's home screen.
 
-- **Página:** HTML/CSS/JS estático, hospedado no GitHub Pages.
-- **Dados:** Firebase Firestore (São Paulo), sincronizado ao vivo entre os celulares e com cache offline.
-- **Login:** uma conta compartilhada da família (`familia@freezerino.app`) no Firebase Auth; o app pede só a senha.
-  As regras em `firestore.rules` liberam leitura e escrita apenas para essa conta.
+- **Page:** static HTML/CSS/JS, hosted on GitHub Pages.
+- **Data:** Firebase Firestore (São Paulo), synced live between phones, with an offline cache.
+- **Login:** one shared family account (`familia@freezerino.app`) in Firebase Auth; the app only asks for the password.
+  The rules in `firestore.rules` allow reads and writes for that account's UID only.
 
-## Arquivos
+## Features
 
-| Arquivo | O que é |
+- Two freezers (Freezer Andréia, Freezer Zé), each with its own shelves and drawers.
+- One dated entry per package; "−" always takes out the oldest one.
+- Freezer time per food: the name turns yellow with less than half of it left, red with less than 20%.
+  A box at the top counts what's expiring and can filter the list to just those foods.
+- Shopping list tab; foods with a minimum ("Comprar quando tiver menos de") are added to it automatically.
+
+## Files
+
+| File | What it is |
 |---|---|
-| `index.html`, `style.css`, `app.js` | O app (abas Freezer, Compras, Prateleiras) |
-| `store.js` | Acesso ao Firebase; em `localhost/?demo` usa dados falsos na memória para testar |
-| `seed.js` | A lista de papel, carregada uma vez no primeiro login |
-| `firestore.rules` | Regras de acesso do Firestore (colar em Firestore → Regras) |
-| `manifest.json`, `icons/` | Ícone e nome na tela inicial |
+| `index.html`, `style.css`, `app.js` | The app (Freezer, Compras, Prateleiras tabs) |
+| `store.js` | Firebase access; on `localhost/?demo` it uses fake in-memory data for testing |
+| `seed.js` | The original paper list, loaded once on the first login |
+| `firestore.rules` | Firestore access rules (paste into Firestore → Rules) |
+| `manifest.json`, `icons/` | Home screen icon and name |
 
-## Rodar localmente
+## Run locally
 
 ```bash
 python -m http.server 5173 --directory .
 ```
 
-Depois abra http://localhost:5173.
+Then open http://localhost:5173 (or http://localhost:5173/?demo for fake data, no login).
 
-## Trocar a senha da família
+## Change the family password
 
-Firebase Console → Authentication → Users → `familia@freezerino.app` → Redefinir senha.
-Depois, cada pessoa toca em "Sair" e entra com a senha nova.
+1. Firebase Console → Authentication → Users: delete `familia@freezerino.app` and add it again with the new password.
+2. Copy the new user's UID into `firestore.rules` (the `isFamily` function) and publish the rules in Firestore → Rules.
+3. Anyone still logged in is sent back to the login screen and signs in with the new password.
+
+The food, shelves and shopping list are stored in Firestore, not in the account, so nothing is lost.
 
 © NKO Industries
