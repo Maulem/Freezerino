@@ -1,5 +1,6 @@
 import { makeStore, DELETE } from "./store.js";
 import { SEED_ITEMS } from "./seed.js";
+import { FOODS } from "./foods.js";
 import { CATEGORIES, catById, guessCategory, categoryOf, setLearned, suggestMonths, clean as cleanName } from "./categories.js";
 
 /*
@@ -53,6 +54,7 @@ let loadTimer = null;
 let tab = tabFromHash();
 let fz = loadFz();          // freezer being shown
 let alertOnly = false;     // "only what expires soon" filter
+let catFilter = null;      // show only one food group (category id), from both freezers
 
 function loadFz() { try { const v = localStorage.getItem("fz"); return FREEZERS.some(f => f.id === v) ? v : "andreia"; } catch { return "andreia"; } }
 function setFz(id) { fz = id; try { localStorage.setItem("fz", id); } catch {} render(); }
@@ -365,6 +367,26 @@ function alertBox() {
      h("span", { class: "go" }, alertOnly ? "Ver tudo" : "Ver"));
 }
 
+// Row of food groups that are in the freezers right now; tap one to see only that group.
+function catChips(all) {
+  const count = {};
+  for (const it of all) {
+    if (!(isUnknown(it.id) || unitsOf(it.id).length > 0)) continue;
+    const c = categoryOf(it);
+    count[c] = (count[c] || 0) + 1;
+  }
+  if (catFilter && !count[catFilter]) count[catFilter] = 0;
+  // the chosen group goes first so it is always visible in the row
+  const cats = CATEGORIES.filter(c => c.id in count).sort((a, b) => (b.id === catFilter) - (a.id === catFilter));
+  if (!cats.length) return "";
+  const pick = id => { catFilter = catFilter === id ? null : id; render(); window.scrollTo(0, 0); };
+  return h("div", { class: "catchips", role: "group", "aria-label": "Grupos de comida" },
+    catFilter ? h("button", { class: "chip", type: "button", onclick: () => pick(catFilter) }, "✕ Todos") : null,
+    cats.map(c => h("button", {
+      class: "chip", type: "button", "aria-pressed": String(catFilter === c.id), onclick: () => pick(c.id),
+    }, `${c.icon} ${c.label}`, h("small", {}, count[c.id]))));
+}
+
 function renderFreezer() {
   const list = $("#list");
   const q = norm($("#q").value);
@@ -372,18 +394,27 @@ function renderFreezer() {
 
   if (ready.items && ready.places) {
     $("#alertSlot").replaceChildren(alertBox());
-    $("#fzSlot").replaceChildren(alertOnly || q ? "" : fzSwitch());
+    $("#fzSlot").replaceChildren(alertOnly || q || catFilter ? "" : fzSwitch());
   }
 
   const al = alerts();
   const alertIds = new Set([...al.bad, ...al.soon].map(a => a.id));
-  const filtering = !!q || alertOnly;
+  const filtering = !!q || alertOnly || !!catFilter;
   const matchQ = it => norm(it.name).includes(q) || norm(catById(categoryOf(it)).label).includes(q);
-  const shown = all.filter(it => (!q || matchQ(it)) && (!alertOnly || alertIds.has(it.id)));
+  const shown = all.filter(it => (!q || matchQ(it)) && (!alertOnly || alertIds.has(it.id))
+    && (!catFilter || categoryOf(it) === catFilter));
 
   const ans = $("#answer");
   ans.textContent = "";
   ans.hidden = !(q && ready.items);
+  if (catFilter && !q && ready.items) {
+    const c = catById(catFilter);
+    const inStock = shown.filter(i => isUnknown(i.id) || unitsOf(i.id).length > 0);
+    ans.hidden = false;
+    if (!inStock.length) ans.textContent = `Não tem ${c.label.toLowerCase()} no freezer agora.`;
+    else ans.append(`${c.icon} ${inStock.length === 1 ? "1 comida" : inStock.length + " comidas"} em `,
+      h("b", {}, [...new Set(inStock.map(i => placeFull(i.place)))].join(", ")));
+  }
   if (q && ready.items) {
     if (!shown.length) ans.textContent = alertOnly ? "Nenhuma comida vencendo com esse nome." : "Não achei isso no freezer.";
     else ans.append("Está na ", h("b", {}, [...new Set(shown.map(i => placeFull(i.place)))].join(", ")));
@@ -391,6 +422,7 @@ function renderFreezer() {
 
   if (!ready.items || !ready.places) return;
   list.textContent = "";
+  list.append(catChips(all));
   if (!filtering && !placesIn(fz).length) {
     list.append(h("div", { class: "state" }, h("strong", {}, `${fzLabel(fz)} ainda não tem prateleiras`),
       "Crie as prateleiras e gavetas dele para começar a guardar comida aqui.",
@@ -497,6 +529,60 @@ function removeItem(id) {
   if (it) logEvent("del", it, id, it.place, 0);
   store.del("items", id).catch(fail);
   toast("Removido da lista");
+}
+
+/* ---------- autocomplete for food names ---------- */
+
+// Suggestions: foods already in the freezers and on the shopping list first, then the long list in foods.js.
+function nameSuggestions(text, limit = 6) {
+  const q = cleanName(text);
+  if (!q) return [];
+  const seen = new Set();
+  const out = [];
+  const add = (name, rank, it) => {
+    const key = cleanName(name);
+    if (!key || seen.has(key) || key === q) return;
+    let score;
+    if (key.startsWith(q)) score = 0;
+    else if (key.split(" ").some(w => w.startsWith(q))) score = 1;
+    else return;
+    seen.add(key);
+    out.push({ name, score, rank, it, len: name.length });
+  };
+  for (const [, it] of items) add(it.name, 0, it);
+  for (const [, sh] of shopping) add(sh.name, 1, null);
+  for (const f of FOODS) add(f, 2, null);
+  out.sort((a, b) => a.score - b.score || a.rank - b.rank || a.len - b.len || a.name.localeCompare(b.name, "pt-BR"));
+  return out.slice(0, limit);
+}
+
+// Wraps an input with a dropdown of suggestions. onPick(name, existingItem|null) runs after the input is filled.
+function withSuggest(input, onPick) {
+  const box = h("div", { class: "suggest", role: "listbox", hidden: true });
+  const wrap = h("div", { class: "suggest-wrap" }, input, box);
+  const hide = () => { box.hidden = true; box.textContent = ""; };
+  const draw = () => {
+    const list = nameSuggestions(input.value);
+    box.textContent = "";
+    if (!list.length || document.activeElement !== input) { hide(); return; }
+    for (const s of list) {
+      const c = catById(categoryOf(s.it || { name: s.name }));
+      const n = s.it ? (s.it.unknown ? "?" : (Array.isArray(s.it.units) ? s.it.units.length : 0)) : null;
+      box.append(h("button", {
+        type: "button", role: "option", class: "sg",
+        onpointerdown: e => e.preventDefault(),   // keep the keyboard open
+        onclick: () => { input.value = s.name; hide(); input.dispatchEvent(new Event("input")); onPick && onPick(s.name, s.it); },
+      }, h("i", { "aria-hidden": "true" }, c.icon), h("span", {}, s.name),
+         s.it ? h("small", {}, `já tem ${n} · ${placeFull(s.it.place)}`) : null));
+    }
+    box.hidden = false;
+  };
+  input.setAttribute("autocomplete", "off");
+  input.addEventListener("input", e => { if (e.isTrusted) draw(); });
+  input.addEventListener("focus", draw);
+  input.addEventListener("blur", () => setTimeout(hide, 150));
+  input.addEventListener("keydown", e => { if (e.key === "Escape" && !box.hidden) { e.stopPropagation(); hide(); } });
+  return wrap;
 }
 
 /* ---------- sheets ---------- */
@@ -680,7 +766,14 @@ function openItemSheet(id, opts = {}) {
 
   const form = h("form", { class: "sheet", onsubmit: save },
     h("h3", {}, editing ? "Editar comida" : opts.fromShop ? "Guardar no freezer" : "Colocar no freezer"),
-    field("Comida", nameIn),
+    field("Comida", editing ? nameIn : withSuggest(nameIn, (name, it) => {
+      // An existing food: put the new packages where it already is, with its settings.
+      if (!it) return;
+      if (places.find(p => p.id === it.place)) { place = it.place; drawChips(); }
+      if (it.shelfMonths != null) { shelfSel.value = it.shelfMonths == null ? "" : String(it.shelfMonths); shelfTouched = true; suggest(); }
+      if (it.min != null && !minIn.value) minIn.value = it.min;
+      if (it.cat) { catSel.value = it.cat; suggest(); }
+    })),
     field("Tipo", catSel),
     h("div", { class: "f" }, h("span", { class: "lbl" }, "Onde"), chips),
     editing
@@ -796,6 +889,9 @@ function clearDone() {
   const ops = [...shopping.entries()].filter(([, s]) => s.done).map(([id]) => ({ op: "del", c: "shopping", id }));
   if (ops.length) store.batch(ops).then(() => toast("Lista limpa")).catch(fail);
 }
+
+// shopping input gets the same name suggestions
+{ const inp = $("#shopIn"), slot = $("#shopInSlot"); slot.append(withSuggest(inp, () => $("#shopForm").requestSubmit())); }
 
 $("#shopForm").addEventListener("submit", e => {
   e.preventDefault();

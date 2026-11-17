@@ -22,6 +22,9 @@ Mobile web app in Portuguese, meant to be added to the phone's home screen.
   sweets, drinks, vegetables, fruit, ready meals, other), guessed from the name by the keyword list in `categories.js`.
   A category picked by hand is remembered for that food name (shared in `meta/cats`); for unknown foods the first word
   is learned too. Searching a category name ("carne") lists all of it.
+- Food group chips above the shelves: tap one (e.g. 🥩 Carne bovina) to see only that group, from both freezers.
+- Autocomplete while typing a food name (adding food or on the shopping list): foods already in the freezers first,
+  then about 720 common names in `foods.js`. Picking an existing food puts the new packages on its shelf.
 - Suggested freezer time per category (with exceptions such as ground meat 3 months, whole chicken 12), filled in
   automatically for new foods until someone picks a time by hand.
 - "Enviar no WhatsApp" on the shopping list sends what's left to buy as a message (free, uses a normal wa.me link).
@@ -39,6 +42,7 @@ Mobile web app in Portuguese, meant to be added to the phone's home screen.
 | `index.html`, `style.css`, `app.js` | The app (Freezer, Compras, Prateleiras tabs) |
 | `store.js` | Firebase access; on `localhost/?demo` it uses fake in-memory data for testing |
 | `categories.js` | Categories and the keywords used to guess them |
+| `foods.js` | Food names suggested while typing |
 | `seed.js` | The original paper list, loaded once on the first login |
 | `firestore.rules` | Firestore access rules (paste into Firestore → Rules) |
 | `manifest.json`, `icons/` | Home screen icon and name |
