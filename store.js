@@ -15,7 +15,7 @@ const firebaseConfig = {
 const FAMILY_EMAIL = "familia@freezerino.app";
 const V = "10.14.1";
 // Public "Web Push certificate" key from Firebase Console → Project settings → Cloud Messaging. Safe to publish.
-const VAPID_KEY = "";
+const VAPID_KEY = "BLMOPx4UTtFVEmtkvdobm6A5elOFbOtvQ6jtXyUDKG1oZBemJBscJNTQLA2HQC0nyPUeiwN_R3jqir5bN63ZmBQ";
 
 export async function makeStore() {
   const demo = new URLSearchParams(location.search).has("demo")
