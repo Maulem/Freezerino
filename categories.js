@@ -78,7 +78,7 @@ export const CATEGORIES = [
     ],
   },
   {
-    id: "graos", icon: "🫘", label: "Feijão e grãos", months: 6, words: [
+    id: "graos", icon: "🌾", label: "Feijão e grãos", months: 6, words: [
       "feijao", "feijao preto", "feijao carioca", "feijao branco", "feijao fradinho", "feijao verde", "lentilha",
       "grao de bico", "grao-de-bico", "ervilha seca", "ervilha partida", "soja", "edamame", "milho cozido", "canjica",
       "quinoa", "aveia", "trigo", "cevada", "hummus", "homus",

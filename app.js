@@ -367,25 +367,36 @@ function alertBox() {
      h("span", { class: "go" }, alertOnly ? "Ver tudo" : "Ver"));
 }
 
-// Row of food groups that are in the freezers right now; tap one to see only that group.
-function catChips(all) {
+// How many foods (in stock) each group has right now.
+function groupCounts() {
   const count = {};
-  for (const it of all) {
-    if (!(isUnknown(it.id) || unitsOf(it.id).length > 0)) continue;
+  for (const [id, it] of items) {
+    if (!(isUnknown(id) || unitsOf(id).length > 0)) continue;
     const c = categoryOf(it);
     count[c] = (count[c] || 0) + 1;
   }
-  if (catFilter && !count[catFilter]) count[catFilter] = 0;
-  // the chosen group goes first so it is always visible in the row
-  const cats = CATEGORIES.filter(c => c.id in count).sort((a, b) => (b.id === catFilter) - (a.id === catFilter));
-  if (!cats.length) return "";
-  const pick = id => { catFilter = catFilter === id ? null : id; render(); window.scrollTo(0, 0); };
-  return h("div", { class: "catchips", role: "group", "aria-label": "Grupos de comida" },
-    catFilter ? h("button", { class: "chip", type: "button", onclick: () => pick(catFilter) }, "✕ Todos") : null,
-    cats.map(c => h("button", {
-      class: "chip", type: "button", "aria-pressed": String(catFilter === c.id), onclick: () => pick(c.id),
-    }, `${c.icon} ${c.label}`, h("small", {}, count[c.id]))));
+  return count;
 }
+
+function setCatFilter(id) { catFilter = id; closeSheet(); render(); window.scrollTo(0, 0); }
+
+// Filter button: a sheet with the food groups that are in the freezers right now.
+function openFilterSheet() {
+  const count = groupCounts();
+  const total = Object.values(count).reduce((a, b) => a + b, 0);
+  const cats = CATEGORIES.filter(c => count[c.id] || c.id === catFilter);
+  const tile = (id, icon, label, n) => h("button", {
+    type: "button", class: "gtile", "aria-pressed": String(catFilter === id), onclick: () => setCatFilter(id),
+  }, h("i", { "aria-hidden": "true" }, icon), h("span", {}, label), h("small", {}, n === 1 ? "1 comida" : `${n} comidas`));
+  showSheet(h("div", { class: "sheet" },
+    h("h3", {}, "Filtrar por tipo"),
+    h("p", { class: "help" }, "Mostra só esse tipo de comida, dos dois freezers."),
+    cats.length
+      ? h("div", { class: "gtiles" }, tile(null, "🍽️", "Tudo", total), cats.map(c => tile(c.id, c.icon, c.label, count[c.id] || 0)))
+      : h("p", {}, "O freezer está vazio."),
+    h("div", { class: "row" }, h("button", { class: "btn", type: "button", onclick: closeSheet }, "Fechar"))));
+}
+$("#filterBtn").addEventListener("click", openFilterSheet);
 
 function renderFreezer() {
   const list = $("#list");
@@ -407,13 +418,18 @@ function renderFreezer() {
   const ans = $("#answer");
   ans.textContent = "";
   ans.hidden = !(q && ready.items);
+  const fb = $("#filterBtn"), fi = $("#filterIcon");
+  fb.classList.toggle("on", !!catFilter);
+  fi.hidden = !catFilter; fi.textContent = catFilter ? catById(catFilter).icon : "";
+  fb.setAttribute("aria-label", catFilter ? `Filtro: ${catById(catFilter).label}. Toque para trocar` : "Filtrar por tipo de comida");
   if (catFilter && !q && ready.items) {
     const c = catById(catFilter);
     const inStock = shown.filter(i => isUnknown(i.id) || unitsOf(i.id).length > 0);
     ans.hidden = false;
     if (!inStock.length) ans.textContent = `Não tem ${c.label.toLowerCase()} no freezer agora.`;
-    else ans.append(`${c.icon} ${inStock.length === 1 ? "1 comida" : inStock.length + " comidas"} em `,
+    else ans.append(`${c.icon} ${c.label}: ${inStock.length === 1 ? "1 comida" : inStock.length + " comidas"} em `,
       h("b", {}, [...new Set(inStock.map(i => placeFull(i.place)))].join(", ")));
+    ans.append(" ", h("button", { class: "linkbtn", type: "button", onclick: () => setCatFilter(null) }, "Ver tudo"));
   }
   if (q && ready.items) {
     if (!shown.length) ans.textContent = alertOnly ? "Nenhuma comida vencendo com esse nome." : "Não achei isso no freezer.";
@@ -422,7 +438,6 @@ function renderFreezer() {
 
   if (!ready.items || !ready.places) return;
   list.textContent = "";
-  list.append(catChips(all));
   if (!filtering && !placesIn(fz).length) {
     list.append(h("div", { class: "state" }, h("strong", {}, `${fzLabel(fz)} ainda não tem prateleiras`),
       "Crie as prateleiras e gavetas dele para começar a guardar comida aqui.",
