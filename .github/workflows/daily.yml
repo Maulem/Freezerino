@@ -1,0 +1,63 @@
+name: Daily check (expiry notifications + backup)
+
+on:
+  schedule:
+    - cron: "0 12 * * *"   # 12:00 UTC = 9:00 in Brasília
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "daily = normal run, test = send a test notification to every phone"
+        type: choice
+        options: [daily, test]
+        default: daily
+
+permissions:
+  contents: read
+  actions: write   # only for the keep-alive step below
+
+jobs:
+  daily:
+    runs-on: ubuntu-latest
+    env:
+      TZ: America/Sao_Paulo
+      MODE: ${{ inputs.mode || 'daily' }}
+      BACKUP_TOKEN: ${{ secrets.BACKUP_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install firebase-admin
+        working-directory: scripts
+        run: npm install --no-audit --no-fund
+
+      - name: Get the backup repo
+        if: env.BACKUP_TOKEN != '' && env.MODE != 'test'
+        run: git clone --depth 1 "https://x-access-token:${BACKUP_TOKEN}@github.com/Maulem/Freezerino-backup.git" backup
+
+      - name: Check expiry, notify phones, write backup
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          BACKUP_DIR: ${{ (env.BACKUP_TOKEN != '' && env.MODE != 'test') && 'backup' || '' }}
+        run: node scripts/daily.mjs
+
+      - name: Save the backup
+        if: env.BACKUP_TOKEN != '' && env.MODE != 'test'
+        working-directory: backup
+        run: |
+          git config user.name "Freezerino backup"
+          git config user.email "backup@freezerino.app"
+          git add -A
+          if git diff --cached --quiet; then echo "No changes since the last backup."; exit 0; fi
+          git commit -q -m "Backup $(date +%F)"
+          git push -q origin HEAD:main
+
+      # GitHub pauses scheduled jobs in repos with no commits for 60 days. Re-enabling resets that clock.
+      - name: Keep the daily schedule alive
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          curl -fsS -X PUT -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json"             "https://api.github.com/repos/${{ github.repository }}/actions/workflows/daily.yml/enable" || true

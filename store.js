@@ -14,6 +14,8 @@ const firebaseConfig = {
 // The single shared family account. The app only asks for its password.
 const FAMILY_EMAIL = "familia@freezerino.app";
 const V = "10.14.1";
+// Public "Web Push certificate" key from Firebase Console → Project settings → Cloud Messaging. Safe to publish.
+const VAPID_KEY = "";
 
 export async function makeStore() {
   const demo = new URLSearchParams(location.search).has("demo")
@@ -43,6 +45,16 @@ async function firebaseStore() {
     onAuth: cb => A.onAuthStateChanged(auth, cb),
     signIn: pw => A.signInWithEmailAndPassword(auth, FAMILY_EMAIL, pw),
     signOut: () => A.signOut(auth),
+    pushReady: !!VAPID_KEY,
+    // Ask Firebase Cloud Messaging for this phone's push address (needs notification permission).
+    async pushToken(reg) {
+      const M = await import(`https://www.gstatic.com/firebasejs/${V}/firebase-messaging.js`);
+      if (!(await M.isSupported())) return null;
+      return M.getToken(M.getMessaging(app), { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
+    },
+    async dropPushToken() {
+      try { const M = await import(`https://www.gstatic.com/firebasejs/${V}/firebase-messaging.js`); await M.deleteToken(M.getMessaging(app)); } catch {}
+    },
     listen(c, onData, onErr) {
       return F.onSnapshot(F.collection(db, c), { includeMetadataChanges: true }, snap => {
         const m = new Map();
@@ -82,7 +94,8 @@ function demoStore() {
   // 2 months, 52 days in -> under 20% left (red, not expired)
   colls.items.set("peixe-teste", { name: "Filé de peixe", place: "p1", units: [now - 52 * day], unknown: false, shelfMonths: 2, min: null, note: "", addedAt: now - 52 * day, updatedAt: now });
   colls.meta.set("seed", { at: Date.now() });
-  const listeners = { items: [], places: [], shopping: [], meta: [] };
+  colls.devices = new Map();
+  const listeners = { items: [], places: [], shopping: [], meta: [], devices: [] };
   const emit = c => setTimeout(() => {
     for (const l of listeners[c]) l(new Map([...colls[c]].map(([k, v]) => [k, structuredClone(v)])), { fromCache: false });
   }, 0);
@@ -99,6 +112,9 @@ function demoStore() {
     onAuth: cb => { authCb = cb; setTimeout(() => cb(user), 0); },
     signIn: async () => { user = { uid: "demo" }; authCb && authCb(user); },
     signOut: async () => { user = null; authCb && authCb(null); },
+    pushReady: true,
+    pushToken: async () => "demo-token-" + Math.random().toString(36).slice(2, 8),
+    dropPushToken: async () => {},
     listen(c, onData) { listeners[c].push(onData); emit(c); return () => { listeners[c] = listeners[c].filter(x => x !== onData); }; },
     async get(c, id) { return colls[c].has(id) ? structuredClone(colls[c].get(id)) : null; },
     async set(c, id, d) { apply(c, id, d, false); emit(c); },

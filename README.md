@@ -16,6 +16,12 @@ Mobile web app in Portuguese, meant to be added to the phone's home screen.
 - Freezer time per food: the name turns yellow with less than half of it left, red with less than 20%.
   A box at the top counts what's expiring and can filter the list to just those foods.
 - Shopping list tab; foods with a minimum ("Comprar quando tiver menos de") are added to it automatically.
+- Opens without internet: a service worker (`sw.js`) keeps a copy of the app, and Firestore keeps the data offline.
+  Changes made offline sync when the connection comes back.
+- Expiry notifications: each phone turns them on with the bell at the top. Every day at 9:00 (Brasília) a GitHub
+  Actions job checks both freezers and notifies when a food passes half of its freezer time, gets under 20% or expires
+  (each step once per package).
+- Daily backup of all the data to the private repo `Maulem/Freezerino-backup` (git history keeps every day).
 
 ## Files
 
@@ -26,6 +32,8 @@ Mobile web app in Portuguese, meant to be added to the phone's home screen.
 | `seed.js` | The original paper list, loaded once on the first login |
 | `firestore.rules` | Firestore access rules (paste into Firestore → Rules) |
 | `manifest.json`, `icons/` | Home screen icon and name |
+| `sw.js` | Service worker: offline copy of the app, shows notifications |
+| `scripts/daily.mjs`, `.github/workflows/daily.yml` | Daily job: expiry notifications + backup |
 
 ## Run locally
 
@@ -34,6 +42,20 @@ python -m http.server 5173 --directory .
 ```
 
 Then open http://localhost:5173 (or http://localhost:5173/?demo for fake data, no login).
+
+## Daily job setup (one time)
+
+Repository secrets (GitHub → Settings → Secrets and variables → Actions):
+
+| Secret | Where it comes from |
+|---|---|
+| `FIREBASE_SERVICE_ACCOUNT` | Firebase Console → Project settings → Service accounts → Generate new private key (paste the whole JSON) |
+| `BACKUP_TOKEN` | Fine-grained GitHub token with *Contents: read and write* on `Maulem/Freezerino-backup` only |
+
+The public Web Push key (Firebase Console → Project settings → Cloud Messaging → Web Push certificates) goes in
+`VAPID_KEY` in `store.js`. To send a test notification: Actions → Daily check → Run workflow → mode `test`.
+
+To restore from a backup, write the JSON files back into Firestore with the Admin SDK (same service account).
 
 ## Change the family password
 

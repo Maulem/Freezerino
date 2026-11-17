@@ -29,11 +29,17 @@ const FREEZERS = [
 const DAY = 86400000;
 const TITLES = { freezer: "Freezerino", compras: "Compras", prateleiras: "Prateleiras" };
 
+// Offline support + notifications. Registered before anything else so the app opens without internet.
+const swReady = "serviceWorker" in navigator
+  ? navigator.serviceWorker.register("sw.js").then(() => navigator.serviceWorker.ready).catch(e => { console.warn("sw", e); return null; })
+  : Promise.resolve(null);
+
 const store = await makeStore();
 
 let items = new Map();
 let places = [];
 let shopping = new Map();
+let devices = new Map();
 const ready = { items: false, places: false, shopping: false };
 const onceDone = new Set();
 const pending = {};      // itemId -> { units, timer }
@@ -208,12 +214,14 @@ function startData() {
     render();
   }, onErr));
   subs.push(store.listen("shopping", m => { shopping = m; ready.shopping = true; render(); }, onErr));
+  subs.push(store.listen("devices", m => { devices = m; }, () => {}));
+  refreshPush();
 }
 
 function stopData() {
   subs.forEach(u => u && u());
   subs = [];
-  items = new Map(); places = []; shopping = new Map();
+  items = new Map(); places = []; shopping = new Map(); devices = new Map();
   ready.items = ready.places = ready.shopping = false;
   onceDone.clear();
 }
@@ -293,6 +301,7 @@ function render() {
   const open = [...shopping.values()].filter(s => !s.done).length;
   const badge = $("#shopBadge");
   badge.hidden = !open; badge.textContent = open;
+  $("#bell").classList.toggle("on", pushState() === "on");
   const al = alerts();
   const fb = $("#fzBadge");
   fb.hidden = !al.bad.length; fb.textContent = al.bad.length;
@@ -752,6 +761,107 @@ function openPlaceSheet(id) {
       h("button", { class: "btn primary", type: "submit" }, editing ? "Salvar" : "Criar"))));
   setTimeout(() => nameIn.focus(), 50);
 }
+
+/* ---------- expiry notifications ---------- */
+
+const lsGet = k => { try { return localStorage.getItem(k); } catch { return null; } };
+const lsSet = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} };
+function deviceId() {
+  let id = lsGet("deviceId");
+  if (!id) { id = "d-" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36); lsSet("deviceId", id); }
+  return id;
+}
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+
+function pushState() {
+  if (!("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) {
+    return isIOS && !standalone ? "home" : "unsupported";
+  }
+  if (Notification.permission === "denied") return "blocked";
+  return lsGet("pushOn") && Notification.permission === "granted" ? "on" : "off";
+}
+
+async function enablePush(name) {
+  if (!store.pushReady) throw new Error("not-configured");
+  const perm = await Notification.requestPermission();
+  if (perm !== "granted") throw new Error("denied");
+  const reg = await swReady;
+  if (!reg) throw new Error("no-sw");
+  const token = await store.pushToken(reg);
+  if (!token) throw new Error("unsupported");
+  await store.set("devices", deviceId(), { token, name: name.slice(0, 40), ua: navigator.userAgent.slice(0, 200), updatedAt: Date.now() });
+  lsSet("pushOn", "1"); lsSet("pushToken", token); lsSet("deviceName", name);
+}
+
+async function disablePush() {
+  await store.del("devices", deviceId()).catch(() => {});
+  await store.dropPushToken();
+  lsSet("pushOn", null); lsSet("pushToken", null);
+}
+
+// Push addresses can change; keep this phone's one up to date (quietly) every time the app opens.
+async function refreshPush() {
+  if (store.demo || pushState() !== "on" || !store.pushReady) return;
+  try {
+    const reg = await swReady;
+    const token = reg && await store.pushToken(reg);
+    if (token && token !== lsGet("pushToken")) {
+      await store.set("devices", deviceId(), { token, name: lsGet("deviceName") || "Celular", ua: navigator.userAgent.slice(0, 200), updatedAt: Date.now() });
+      lsSet("pushToken", token);
+    }
+  } catch (e) { console.warn("push refresh", e); }
+}
+
+function openBellSheet() {
+  const st = pushState();
+  const nameIn = h("input", { type: "text", id: "f-dev", value: lsGet("deviceName") || "", placeholder: "Ex: Celular da Andréia", autocomplete: "off", maxlength: "40" });
+  const others = [...devices.entries()].filter(([id]) => id !== deviceId()).map(([, d]) => d.name || "Celular");
+  const msg = h("p", { class: "help" });
+  const body = [];
+
+  if (st === "home") {
+    body.push(h("p", {}, "No iPhone, os avisos só funcionam pelo ícone na tela inicial. Abra o Freezerino pelo ícone (não pelo Safari) e toque no sino de novo."));
+  } else if (st === "unsupported") {
+    body.push(h("p", {}, "Este navegador não recebe avisos. No Android use o Chrome; no iPhone, o ícone na tela inicial (iOS 16.4 ou mais novo)."));
+  } else if (st === "blocked") {
+    body.push(h("p", {}, "Os avisos estão bloqueados para o Freezerino neste celular. Libere em Ajustes do celular → Notificações → Freezerino (ou nas configurações do site no Chrome) e volte aqui."));
+  } else if (st === "on") {
+    body.push(h("p", {}, h("b", {}, "Ativado neste celular"), ` (${lsGet("deviceName") || "Celular"}).`));
+    body.push(h("div", { class: "row" },
+      h("button", { class: "btn", type: "button", onclick: async () => {
+        const reg = await swReady;
+        if (reg) reg.showNotification("Freezerino", { body: "Teste: os avisos estão funcionando neste celular.", icon: "icons/icon-192.png", tag: "freezerino-test" });
+        else toast("Não consegui mostrar o teste.");
+      } }, "Mostrar um teste"),
+      h("button", { class: "btn danger", type: "button", onclick: async () => { await disablePush(); closeSheet(); render(); toast("Avisos desativados neste celular"); } }, "Desativar")));
+  } else {
+    body.push(field("Nome deste celular", nameIn, "Para saber quem recebe os avisos."));
+    body.push(h("div", { class: "row" },
+      h("button", { class: "btn primary", type: "button", onclick: async e => {
+        const btn = e.currentTarget;
+        const name = nameIn.value.trim() || "Celular";
+        btn.disabled = true; btn.textContent = "Ativando…"; msg.textContent = "";
+        try { await enablePush(name); closeSheet(); render(); toast("Avisos ativados neste celular"); }
+        catch (err) {
+          btn.disabled = false; btn.textContent = "Ativar avisos";
+          const m = err && err.message;
+          msg.textContent = m === "denied" ? "Você não permitiu os avisos. Se mudar de ideia, libere nas configurações do celular."
+            : m === "not-configured" ? "Os avisos ainda não foram configurados no Firebase."
+            : "Não consegui ativar. Confira a internet e tente de novo.";
+          console.warn("push", err);
+        }
+      } }, "Ativar avisos")));
+  }
+
+  showSheet(h("div", { class: "sheet" },
+    h("h3", {}, "Avisos de validade"),
+    h("p", { class: "help" }, "Todo dia às 9h o Freezerino confere os dois freezers e avisa quando uma comida passa da metade da validade, fica perto de vencer ou vence."),
+    ...body, msg,
+    others.length ? h("p", { class: "help" }, `Também recebem: ${others.join(", ")}.`) : null,
+    h("div", { class: "row" }, h("button", { class: "btn", type: "button", onclick: closeSheet }, "Fechar"))));
+}
+$("#bell").addEventListener("click", openBellSheet);
 
 /* ---------- misc ---------- */
 

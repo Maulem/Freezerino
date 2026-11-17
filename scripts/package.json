@@ -1,0 +1,8 @@
+{
+  "name": "freezerino-daily",
+  "private": true,
+  "description": "Daily expiry notifications and backup for Freezerino (runs on GitHub Actions).",
+  "dependencies": {
+    "firebase-admin": "^13.0.0"
+  }
+}

@@ -41,6 +41,15 @@ service cloud.firestore {
         && request.resource.data.done is bool;
     }
 
+    // Phones that want expiry notifications (push address from Firebase Cloud Messaging).
+    match /devices/{id} {
+      allow read, delete: if isFamily();
+      allow create, update: if isFamily()
+        && request.resource.data.token is string
+        && request.resource.data.token.size() > 0 && request.resource.data.token.size() <= 4096
+        && (!('name' in request.resource.data) || (request.resource.data.name is string && request.resource.data.name.size() <= 40));
+    }
+
     match /meta/{id} {
       allow read, write: if isFamily();
     }
