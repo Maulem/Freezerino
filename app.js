@@ -1146,7 +1146,7 @@ function renderSettings() {
     h("h2", { class: "sethead" }, "Freezers"),
     h("ul", { class: "card" },
       row("Trocar prateleiras", "Criar, renomear, mudar a ordem ou excluir prateleiras e gavetas", () => { location.hash = "#prateleiras"; }),
-      row(`Mapa do ${fzLabel(fz)}`, "Onde fica cada prateleira", () => openFreezerMap(fz))),
+      FREEZERS.map(f => row(`Mapa do ${f.label}`, "Onde fica cada prateleira", () => openFreezerMap(f.id)))),
     h("h2", { class: "sethead" }, "Avisos"),
     h("ul", { class: "card" }, row("Avisos de validade", pushState() === "on" ? "Ativados neste celular" : "Desativados neste celular", openBellSheet)),
     h("h2", { class: "sethead" }, "Conta"),

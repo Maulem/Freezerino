@@ -78,8 +78,10 @@ fun SettingsScreen(store: Store, open: (Sheet) -> Unit) {
         Section("Freezers")
         Card {
             Row2("Trocar prateleiras", "Criar, renomear, mudar a ordem ou excluir prateleiras e gavetas") { SettingsNav.shelves = true }
-            Divider()
-            Row2("Mapa do ${com.nkoindustries.freezerino.data.freezerLabel(store.fz)}", "Onde fica cada prateleira") { open(Sheet.Map(store.fz)) }
+            com.nkoindustries.freezerino.data.FREEZERS.forEach { f ->
+                Divider()
+                Row2("Mapa do ${f.label}", "Onde fica cada prateleira") { open(Sheet.Map(f.id)) }
+            }
         }
 
         // ---- notifications ----
