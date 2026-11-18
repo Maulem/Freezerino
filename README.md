@@ -23,6 +23,8 @@ Mobile web app in Portuguese, meant to be added to the phone's home screen.
   A box at the top counts what's expiring and can filter the list to just those foods.
 - Shopping list tab; foods with a minimum ("Comprar quando tiver menos de") are added to it automatically. The same
   food on several shelves counts as one total (bacon on the 1st and 3rd shelves = 2).
+- Ajustes tab (same in the Android app): pick who uses the phone, "Trocar prateleiras" (shelves page), the freezer map,
+  notifications, and Sair.
 - History tab: who put in, took out or stored what, and when (each phone says once who uses it). Kept for 6 months.
 - Bought items on the shopping list have a "Guardar" button that puts them in the freezer and takes them off the list.
 - 17 food categories with an icon (beef, pork, chicken, fish, cold cuts, cheese, beans, spices, pasta, snacks, breads,

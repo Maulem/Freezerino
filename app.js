@@ -39,7 +39,7 @@ const FREEZERS = [
   { id: "ze", label: "Freezer Zé" },
 ];
 const DAY = 86400000;
-const TITLES = { freezer: "Freezerino", compras: "Compras", historico: "Histórico", prateleiras: "Prateleiras" };
+const TITLES = { freezer: "Freezerino", compras: "Compras", historico: "Histórico", ajustes: "Ajustes", prateleiras: "Prateleiras" };
 const PEOPLE = ["Henrique", "Andréia", "Zé"];
 
 // Offline support + notifications. Registered before anything else so the app opens without internet.
@@ -360,13 +360,15 @@ const totalText = t => t.unknown ? (t.n ? `${t.n}+?` : "?") : String(t.n);
 
 function render() {
   for (const a of document.querySelectorAll(".tabs a")) {
-    if (a.dataset.tab === tab) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
+    // the shelves page lives inside Ajustes
+    if (a.dataset.tab === (tab === "prateleiras" ? "ajustes" : tab)) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
   }
   $("#viewTitle").textContent = TITLES[tab];
   document.title = tab === "freezer" ? "Freezerino" : `${TITLES[tab]} · Freezerino`;
   $("#freezerView").hidden = tab !== "freezer";
   $("#shopView").hidden = tab !== "compras";
   $("#placesView").hidden = tab !== "prateleiras";
+  $("#settingsView").hidden = tab !== "ajustes";
   $("#logView").hidden = tab !== "historico";
   $("#add").hidden = $("#appView").hidden || tab !== "freezer";
   const open = [...shopping.values()].filter(s => !s.done).length;
@@ -380,6 +382,7 @@ function render() {
   if (tab === "freezer") renderFreezer();
   else if (tab === "compras") renderShopping();
   else if (tab === "historico") renderLog();
+  else if (tab === "ajustes") renderSettings();
   else renderPlaces();
 }
 
@@ -1117,6 +1120,38 @@ function openPlaceSheet(id) {
       h("button", { class: "btn", type: "button", onclick: closeSheet }, "Cancelar"),
       h("button", { class: "btn primary", type: "submit" }, editing ? "Salvar" : "Criar"))));
   setTimeout(() => nameIn.focus(), 50);
+}
+
+/* ---------- Ajustes (settings): user, shelves, map, notifications, account ---------- */
+
+function renderSettings() {
+  const box = $("#settingsBox");
+  const cur = lsGet("who");
+  const other = h("input", { type: "text", value: cur && !PEOPLE.includes(cur) ? cur : "", placeholder: "Outro nome", autocomplete: "off", maxlength: "40", "aria-label": "Outro nome" });
+  const pick = name => {
+    name = (name || "").trim().slice(0, 40);
+    if (!name) { other.focus(); return; }
+    lsSet("who", name);
+    if (!lsGet("deviceName")) lsSet("deviceName", name);
+    render(); toast(`Agora você é ${name}`);
+  };
+  const row = (title, sub, onclick) => h("li", {}, h("button", { class: "setrow", type: "button", onclick },
+    h("span", {}, h("b", {}, title), h("small", {}, sub)), h("i", { "aria-hidden": "true" }, "›")));
+  box.replaceChildren(
+    h("h2", { class: "sethead" }, "Usuário"),
+    h("div", { class: "card setcard" },
+      h("p", { class: "help" }, "Quem usa este celular? Aparece no histórico de quem colocou e tirou cada comida."),
+      h("div", { class: "chips" }, PEOPLE.map(p => h("button", { class: "chip", type: "button", "aria-pressed": String(cur === p), onclick: () => pick(p) }, p))),
+      h("form", { class: "addunit who", onsubmit: e => { e.preventDefault(); pick(other.value); } }, other, h("button", { class: "btn primary", type: "submit" }, "Sou eu"))),
+    h("h2", { class: "sethead" }, "Freezers"),
+    h("ul", { class: "card" },
+      row("Trocar prateleiras", "Criar, renomear, mudar a ordem ou excluir prateleiras e gavetas", () => { location.hash = "#prateleiras"; }),
+      row(`Mapa do ${fzLabel(fz)}`, "Onde fica cada prateleira", () => openFreezerMap(fz))),
+    h("h2", { class: "sethead" }, "Avisos"),
+    h("ul", { class: "card" }, row("Avisos de validade", pushState() === "on" ? "Ativados neste celular" : "Desativados neste celular", openBellSheet)),
+    h("h2", { class: "sethead" }, "Conta"),
+    h("ul", { class: "card" }, row("Sair", "Volta para a tela da senha da família", () => store.signOut())),
+    h("p", { class: "setfoot" }, "Freezerino · NKO Industries"));
 }
 
 /* ---------- who is using this phone + history ---------- */

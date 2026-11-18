@@ -115,7 +115,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
 .sheet h3 { margin: 0; font-family: var(--display); font-size: 21px; }
 .f { display: grid; gap: 6px; }
 .f > .lbl { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
-.sheet input[type=text], .sheet input[type=number] {
+.sheet input[type=text], .sheet input[type=number], .setcard input[type=text] {
   font: inherit; font-size: 17px; padding: 11px 12px; border-radius: 10px; border: 1.5px solid var(--line); background: var(--frost); color: var(--ink); width: 100%;
 }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -378,3 +378,16 @@ li.logrow.out .sign { background: var(--warn-soft); color: var(--warn); }
 .flap { position: absolute; top: 8px; left: 12%; width: 76%; height: 5px; border-radius: 3px; background: var(--line); }
 .fslot.shelf.tall { height: 84px; }
 .fslot.drawer.thin { height: 46px; }
+
+/* Ajustes (settings) */
+.sethead { font-size: 15px; color: var(--muted); margin: 18px 4px 8px; font-family: var(--body); }
+.sethead:first-child { margin-top: 4px; }
+.setcard { padding: 16px; display: grid; gap: 12px; }
+.setcard .help { margin: 0; }
+.setrow { width: 100%; display: flex; align-items: center; gap: 10px; padding: 14px 16px; border: 0; background: none; font: inherit; color: var(--ink); text-align: left; cursor: pointer; }
+.setrow span { flex: 1; display: grid; gap: 2px; }
+.setrow small { color: var(--muted); font-size: 13px; }
+.setrow i { font-style: normal; font-size: 22px; color: var(--muted); }
+.card > li + li .setrow { border-top: 1px solid var(--line); }
+.setfoot { text-align: center; color: var(--muted); font-size: 12px; margin-top: 18px; }
+.back { display: inline-block; margin: 0 0 8px; color: var(--accent); font-weight: 600; text-decoration: none; }
