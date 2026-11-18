@@ -391,3 +391,6 @@ li.logrow.out .sign { background: var(--warn-soft); color: var(--warn); }
 .card > li + li .setrow { border-top: 1px solid var(--line); }
 .setfoot { text-align: center; color: var(--muted); font-size: 12px; margin-top: 18px; }
 .back { display: inline-block; margin: 0 0 8px; color: var(--accent); font-weight: 600; text-decoration: none; }
+
+/* Shopping count is just a count, not a warning: accent colour instead of red */
+#shopBadge { background: var(--accent); color: var(--accent-ink); }

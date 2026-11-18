@@ -163,14 +163,16 @@ private fun MainScreen(store: Store) {
             NavigationBar(containerColor = p.surface) {
                 val colors = NavigationBarItemDefaults.colors(selectedIconColor = p.accent, selectedTextColor = p.accent,
                     indicatorColor = p.accentSoft, unselectedIconColor = p.muted, unselectedTextColor = p.muted)
-                @Composable fun item(t: Tab, label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, badge: Int) =
+                // red only for food that needs attention; the shopping count is just a count
+                @Composable fun item(t: Tab, label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, badge: Int, warn: Boolean = false) =
                     NavigationBarItem(selected = tab == t, onClick = { tab = t }, colors = colors, label = { Text(label) },
                         icon = {
-                            BadgedBox(badge = { if (badge > 0) Badge(containerColor = p.danger) { Text("$badge") } }) {
+                            BadgedBox(badge = { if (badge > 0) Badge(containerColor = if (warn) p.danger else p.accent,
+                                contentColor = if (warn) androidx.compose.ui.graphics.Color.White else p.accentInk) { Text("$badge") } }) {
                                 Icon(icon, contentDescription = null)
                             }
                         })
-                item(Tab.FREEZER, "Freezer", Icons.Outlined.Kitchen, al.bad.size)
+                item(Tab.FREEZER, "Freezer", Icons.Outlined.Kitchen, al.bad.size, warn = true)
                 item(Tab.COMPRAS, "Compras", Icons.Outlined.ShoppingCart, openShop)
                 item(Tab.HISTORICO, "Histórico", Icons.Outlined.History, 0)
                 item(Tab.AJUSTES, "Ajustes", Icons.Outlined.Settings, 0)

@@ -120,9 +120,10 @@ class Store(private val ctx: Context) {
             places = s.documents.map { Place.from(it.id, it.data ?: emptyMap()) }.sortedBy { it.order }
             if (!s.metadata.isFromCache) once("places") { seedPlaces() }
         }
-        subs += db.collection("shopping").addSnapshotListener { s, e ->
+        subs += db.collection("shopping").addSnapshotListener(MetadataChanges.INCLUDE) { s, e ->
             if (e != null) { onErr(e); return@addSnapshotListener }
             shopping = s?.documents?.associate { it.id to ShopEntry.from(it.id, it.data ?: emptyMap()) } ?: emptyMap()
+            if (s != null && !s.metadata.isFromCache) once("import") { importShopping() }
         }
         subs += db.collection("devices").addSnapshotListener { s, _ ->
             devices = s?.documents?.associate { it.id to (it.getString("name") ?: "Celular") } ?: emptyMap()
@@ -376,6 +377,30 @@ class Store(private val ctx: Context) {
             .set(mapOf("name" to name, "done" to false, "auto" to false, "addedAt" to System.currentTimeMillis()))
             .addOnFailureListener(fail)
         return true
+    }
+
+    /**
+     * One-time import: a text file copied over ADB into the app's own folder
+     * (Android/data/com.nkoindustries.freezerino/files/shopping-import.txt), one item per line.
+     * Bullets and check marks are ignored; items already on the list are skipped. The file is deleted afterwards.
+     */
+    private fun importShopping() {
+        val f = java.io.File(ctx.getExternalFilesDir(null), "shopping-import.txt")
+        if (!f.exists()) return
+        val names = f.readLines(Charsets.UTF_8)
+            .map { it.replace(Regex("^[\\s◦•✓✔☐☑*·-]+"), "").trim() }
+            .filter { it.isNotEmpty() }
+            .map { it.replaceFirstChar { c -> c.uppercase() } }
+            .distinctBy { norm(it) }
+            .filter { n -> shopping.values.none { !it.done && norm(it.name) == norm(n) } }
+        f.delete()
+        if (names.isEmpty()) return
+        val now = System.currentTimeMillis()
+        val b = db.batch()
+        names.forEachIndexed { i, n ->
+            b.set(db.collection("shopping").document(newId(n)), mapOf("name" to n, "done" to false, "auto" to false, "addedAt" to now + i))
+        }
+        b.commit().addOnSuccessListener { say("${names.size} itens adicionados à lista de compras") }.addOnFailureListener(fail)
     }
 
     fun toggleShopping(s: ShopEntry) {
