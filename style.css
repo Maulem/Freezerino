@@ -351,7 +351,7 @@ li.logrow.out .sign { background: var(--warn-soft); color: var(--warn); }
   flex: none; width: 30px; align-self: center; height: 30px; border-radius: 50%; border: 1.5px solid var(--accent); background: var(--surface);
   color: var(--accent); font: italic 700 17px/1 Georgia, "Times New Roman", serif; cursor: pointer; padding: 0;
 }
-.fmap { display: grid; grid-template-columns: 2fr 3fr; gap: 10px; }
+.fmap { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: stretch; }
 .fdoor, .fbody { display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 2px solid var(--line); border-radius: 12px; background: var(--frost); }
 .fcap { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; text-align: center; }
 .fdisp, .fice {
