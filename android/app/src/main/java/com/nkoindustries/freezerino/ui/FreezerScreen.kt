@@ -72,8 +72,11 @@ fun FreezerScreen(store: Store, open: (Sheet) -> Unit, goShelves: () -> Unit) {
     val alertIds = (al.bad + al.soon).map { it.id }.toSet()
     val filtering = q.isNotEmpty() || alertOnly || catFilter != null
     val all = store.items.values.toList()
+    // The name contains the text ("le" finds Lentilha, Pele de frango…). A food group only counts from 4 letters and
+    // at the start of one of its words ("legu" → Legumes e verduras), so "fe" doesn't bring every bean.
+    val catHit = { it: Item -> q.length >= 4 && norm(Categories.byId(Categories.of(it)).label).split(" ").any { w -> w.startsWith(q) } }
     val shown = all.filter { it ->
-        (q.isEmpty() || norm(it.name).contains(q) || norm(Categories.byId(Categories.of(it)).label).contains(q))
+        (q.isEmpty() || norm(it.name).contains(q) || catHit(it))
             && (!alertOnly || it.id in alertIds) && (catFilter == null || Categories.of(it) == catFilter)
     }
     val inStock = { it: Item -> store.isUnknown(it.id) || store.unitsOf(it.id).isNotEmpty() }
@@ -101,7 +104,13 @@ fun FreezerScreen(store: Store, open: (Sheet) -> Unit, goShelves: () -> Unit) {
             val text = buildAnnotatedString {
                 if (q.isNotEmpty()) {
                     if (shown.isEmpty()) append(if (alertOnly) "Nenhuma comida vencendo com esse nome." else "Não achei isso no freezer.")
-                    else { append("Está na "); withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = p.ink)) { append(shown.map { store.placeFull(it.place) }.distinct().joinToString(", ")) } }
+                    // a few foods: where each one is; many: just how many (the shelves below show them)
+                    else if (shown.size <= 3) shown.forEachIndexed { k, it ->
+                        if (k > 0) append("\n")
+                        withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = p.ink)) { append(it.name) }
+                        append(" está na ${store.placeFull(it.place)}")
+                    }
+                    else { withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = p.ink)) { append("${shown.size} comidas") }; append(" com “${query.trim()}”, nas prateleiras abaixo") }
                 } else {
                     val c = Categories.byId(catFilter)
                     val stock = shown.filter(inStock)

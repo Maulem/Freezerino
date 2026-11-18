@@ -539,7 +539,10 @@ function renderFreezer() {
   const al = alerts();
   const alertIds = new Set([...al.bad, ...al.soon].map(a => a.id));
   const filtering = !!q || alertOnly || !!catFilter;
-  const matchQ = it => norm(it.name).includes(q) || norm(catById(categoryOf(it)).label).includes(q);
+  // The name contains the text ("le" finds Lentilha, Pele de frango…). A food group only counts from 4 letters and
+  // at the start of one of its words ("legu" → Legumes e verduras), so "fe" doesn't bring every bean.
+  const catHit = it => q.length >= 4 && norm(catById(categoryOf(it)).label).split(/\s+/).some(w => w.startsWith(q));
+  const matchQ = it => norm(it.name).includes(q) || catHit(it);
   const shown = all.filter(it => (!q || matchQ(it)) && (!alertOnly || alertIds.has(it.id))
     && (!catFilter || categoryOf(it) === catFilter));
 
@@ -561,7 +564,9 @@ function renderFreezer() {
   }
   if (q && ready.items) {
     if (!shown.length) ans.textContent = alertOnly ? "Nenhuma comida vencendo com esse nome." : "Não achei isso no freezer.";
-    else ans.append("Está na ", h("b", {}, [...new Set(shown.map(i => placeFull(i.place)))].join(", ")));
+    // A few foods: say where each one is. Many: just how many, the shelves below show them.
+    else if (shown.length <= 3) shown.forEach((i, k) => { if (k) ans.append(h("br")); ans.append(h("b", {}, i.name), ` está na ${placeFull(i.place)}`); });
+    else ans.append(h("b", {}, `${shown.length} comidas`), ` com “${$("#q").value.trim()}”, nas prateleiras abaixo`);
   }
 
   if (!ready.items || !ready.places) return;

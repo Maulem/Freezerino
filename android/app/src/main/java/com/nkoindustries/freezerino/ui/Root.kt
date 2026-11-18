@@ -24,7 +24,7 @@ import androidx.compose.material.icons.outlined.Kitchen
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.ShoppingCart
-import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
@@ -71,7 +71,7 @@ sealed interface Sheet {
     data class PlaceEdit(val id: String?) : Sheet
 }
 
-enum class Tab(val title: String) { FREEZER("Freezerino"), COMPRAS("Compras"), HISTORICO("Histórico"), PRATELEIRAS("Prateleiras") }
+enum class Tab(val title: String) { FREEZER("Freezerino"), COMPRAS("Compras"), HISTORICO("Histórico"), AJUSTES("Ajustes") }
 
 @Composable
 fun FreezerinoRoot(store: Store) {
@@ -146,7 +146,7 @@ private fun MainScreen(store: Store) {
             Row(Modifier.fillMaxWidth().statusBarsPadding().padding(start = 18.dp, end = 8.dp, top = 10.dp, bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text(tab.title, fontSize = 28.sp, fontWeight = FontWeight.Bold, color = p.ink)
+                    Text(if (tab == Tab.AJUSTES && SettingsNav.shelves) "Prateleiras" else tab.title, fontSize = 28.sp, fontWeight = FontWeight.Bold, color = p.ink)
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(Modifier.size(8.dp).clip(CircleShape).background(if (store.synced) p.ok else p.out))
                         Text(store.status, fontSize = 13.sp, color = p.muted, modifier = Modifier.padding(start = 6.dp))
@@ -173,7 +173,7 @@ private fun MainScreen(store: Store) {
                 item(Tab.FREEZER, "Freezer", Icons.Outlined.Kitchen, al.bad.size)
                 item(Tab.COMPRAS, "Compras", Icons.Outlined.ShoppingCart, openShop)
                 item(Tab.HISTORICO, "Histórico", Icons.Outlined.History, 0)
-                item(Tab.PRATELEIRAS, "Prateleiras", Icons.Outlined.Tune, 0)
+                item(Tab.AJUSTES, "Ajustes", Icons.Outlined.Settings, 0)
             }
         },
         floatingActionButton = {
@@ -185,10 +185,10 @@ private fun MainScreen(store: Store) {
     ) { pad ->
         Box(Modifier.padding(pad).fillMaxSize()) {
             when (tab) {
-                Tab.FREEZER -> FreezerScreen(store, open = { sheet = it }, goShelves = { tab = Tab.PRATELEIRAS })
+                Tab.FREEZER -> FreezerScreen(store, open = { sheet = it }, goShelves = { SettingsNav.shelves = true; tab = Tab.AJUSTES })
                 Tab.COMPRAS -> ShoppingScreen(store, open = { sheet = it })
                 Tab.HISTORICO -> HistoryScreen(store, open = { sheet = it })
-                Tab.PRATELEIRAS -> ShelvesScreen(store, open = { sheet = it })
+                Tab.AJUSTES -> SettingsScreen(store, open = { sheet = it })
             }
         }
     }
@@ -196,7 +196,7 @@ private fun MainScreen(store: Store) {
     sheet?.let { s ->
         val close = { sheet = null }
         when (s) {
-            is Sheet.ItemEdit -> ItemSheet(store, s, close, goShelves = { sheet = null; tab = Tab.PRATELEIRAS })
+            is Sheet.ItemEdit -> ItemSheet(store, s, close, goShelves = { sheet = null; SettingsNav.shelves = true; tab = Tab.AJUSTES })
             Sheet.Filter -> FilterSheet(store, close)
             is Sheet.Map -> MapSheet(store, s.freezer, close)
             Sheet.Who -> WhoSheet(store, close)

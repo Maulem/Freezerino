@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -170,15 +171,15 @@ fun MapSheet(store: Store, f: String, close: () -> Unit) {
             }
         } else {
             Row(Modifier.fillMaxWidth().height(470.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                box("Porta", Modifier.weight(2f).fillMaxWidth()) {
+                box("Porta", Modifier.weight(2f).fillMaxWidth().fillMaxHeight()) {
                     slot("d12", findDoor(listOf(1, 2)), "1ª e 2ª", 70.dp, weight = 2f, style = "block")
                     dashed("gelo e água", 96.dp)
                     slot("d345", findDoor(listOf(3, 4, 5)), "3ª, 4ª e 5ª", 70.dp, weight = 3f, style = "block")
                 }
-                box("Dentro", Modifier.weight(3f).fillMaxWidth()) {
+                box("Dentro", Modifier.weight(3f).fillMaxWidth().fillMaxHeight()) {
                     dashed("máquina de gelo", 52.dp)
-                    (1..3).forEach { slot("p$it", findIn("prateleira", it), "${it}ª Prateleira", 58.dp) }
-                    (1..2).forEach { slot("g$it", findIn("gaveta", it), "${it}ª Gaveta", 68.dp, style = "drawer") }
+                    (1..3).forEach { slot("p$it", findIn("prateleira", it), "${it}ª Prateleira", 58.dp, weight = 58f) }
+                    (1..2).forEach { slot("g$it", findIn("gaveta", it), "${it}ª Gaveta", 68.dp, weight = 68f, style = "drawer") }
                 }
             }
         }
