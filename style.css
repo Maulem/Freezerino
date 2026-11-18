@@ -394,3 +394,5 @@ li.logrow.out .sign { background: var(--warn-soft); color: var(--warn); }
 
 /* Shopping count is just a count, not a warning: accent colour instead of red */
 #shopBadge { background: var(--accent); color: var(--accent-ink); }
+.shophint { margin: 6px 4px 10px; color: var(--ok); font-weight: 600; font-size: 14.5px; }
+.sg small.listed { color: var(--ok); }

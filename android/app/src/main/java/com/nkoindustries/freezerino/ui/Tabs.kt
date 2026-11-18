@@ -59,9 +59,11 @@ fun ShoppingScreen(store: Store, open: (Sheet) -> Unit) {
     val ctx = LocalContext.current
     var text by rememberSaveable { mutableStateOf("") }
     val all = store.shopping.values.toList()
-    val openList = all.filter { !it.done }.sortedBy { it.addedAt }
-    val done = all.filter { it.done }.sortedByDescending { it.doneAt ?: 0 }
-    val submit = { v: String -> val n = v.trim(); if (n.isNotEmpty()) { store.addShopping(n); text = "" } }
+    // alphabetical, ignoring accents and case
+    val openList = all.filter { !it.done }.sortedBy { norm(store.shopName(it)) }
+    val done = all.filter { it.done }.sortedBy { norm(store.shopName(it)) }
+    val dup = text.trim().takeIf { it.isNotEmpty() }?.let { store.onShopList(it) }
+    val submit = { v: String -> val n = v.trim(); if (n.isNotEmpty() && store.addShopping(n)) text = "" }
 
     fun share(whatsapp: Boolean) {
         val lines = openList.map { "• " + ((it.itemId?.let { id -> store.items[id]?.name }) ?: it.name) }
@@ -83,6 +85,9 @@ fun ShoppingScreen(store: Store, open: (Sheet) -> Unit) {
                     onPick = { submit(it.name) }, imeDone = { submit(text) })
                 PrimaryButton("Adicionar", Modifier.padding(top = 4.dp)) { submit(text) }
             }
+            // while typing: say right away when it's already on the list
+            if (dup != null) Text("✓ “${store.shopName(dup)}” já está na lista", color = p.ok, fontWeight = FontWeight.SemiBold,
+                fontSize = 14.5.sp, modifier = Modifier.padding(start = 4.dp, top = 6.dp))
         }
         if (all.isEmpty()) {
             item { StateBox("Nada para comprar", "Escreva acima o que precisa, ou defina em cada comida “Comprar quando tiver menos de” para ela entrar aqui sozinha.") }

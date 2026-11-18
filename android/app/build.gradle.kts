@@ -41,8 +41,8 @@ android {
         applicationId = "com.nkoindustries.freezerino"
         minSdk = 26
         targetSdk = 36
-        versionCode = 6
-        versionName = "2.4"
+        versionCode = 7
+        versionName = "2.5"
         buildConfigField("String", "FIREBASE_APP_ID", "\"${firebase["appId"]}\"")
         buildConfigField("String", "FIREBASE_API_KEY", "\"${firebase["apiKey"]}\"")
     }

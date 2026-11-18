@@ -371,8 +371,12 @@ class Store(private val ctx: Context) {
         } else if (s != null && !s.done) col.document(sid).delete().addOnFailureListener(fail)
     }
 
+    fun shopName(s: ShopEntry) = s.itemId?.let { items[it]?.name } ?: s.name
+    /** An entry still to buy with the same name (accents and case ignored). */
+    fun onShopList(name: String) = shopping.values.firstOrNull { !it.done && norm(shopName(it)) == norm(name) }
+
     fun addShopping(name: String): Boolean {
-        if (shopping.values.any { !it.done && norm(it.name) == norm(name) }) { say("Já está na lista"); return false }
+        if (onShopList(name) != null) { say("Já está na lista"); return false }
         db.collection("shopping").document(newId(name))
             .set(mapOf("name" to name, "done" to false, "auto" to false, "addedAt" to System.currentTimeMillis()))
             .addOnFailureListener(fail)

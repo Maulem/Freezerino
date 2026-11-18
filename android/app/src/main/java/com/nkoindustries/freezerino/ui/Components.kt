@@ -210,7 +210,10 @@ fun FoodField(
                     Text(c.icon, fontSize = 18.sp)
                     Column(Modifier.padding(start = 10.dp)) {
                         Text(s.name, color = p.ink, fontSize = 15.5.sp)
-                        if (t != null) Text("já tem ${t.text} · ${store.placesText(t.where)}", color = p.muted, fontSize = 12.5.sp)
+                        val listed = store.onShopList(s.name) != null
+                        val notes = listOfNotNull(if (listed) "✓ já está na lista de compras" else null,
+                            t?.let { "já tem ${it.text} · ${store.placesText(it.where)}" })
+                        if (notes.isNotEmpty()) Text(notes.joinToString(" · "), color = if (listed) p.ok else p.muted, fontSize = 12.5.sp)
                     }
                 }
             }

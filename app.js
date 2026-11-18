@@ -721,12 +721,14 @@ function withSuggest(input, onPick) {
     for (const s of list) {
       const c = catById(categoryOf(s.it || { name: s.name }));
       const t = s.it ? foodTotal(s.it.name) : null;
+      const listed = onShopList(s.name);
+      const notes = [listed ? "✓ já está na lista de compras" : "", t ? `já tem ${totalText(t)} · ${placesText(t.where)}` : ""].filter(Boolean);
       box.append(h("button", {
         type: "button", role: "option", class: "sg",
         onpointerdown: e => e.preventDefault(),   // keep the keyboard open
         onclick: () => { input.value = s.name; hide(); input.dispatchEvent(new Event("input")); onPick && onPick(s.name, s.it); },
       }, h("i", { "aria-hidden": "true" }, c.icon), h("span", {}, s.name),
-         t ? h("small", {}, `já tem ${totalText(t)} · ${placesText(t.where)}`) : null));
+         notes.length ? h("small", { class: listed ? "listed" : null }, notes.join(" · ")) : null));
     }
     box.hidden = false;
   };
@@ -955,10 +957,13 @@ function openItemSheet(id, opts = {}) {
 function renderShopping() {
   const box = $("#shopList");
   if (!ready.shopping) return;
+  shopHint();
   box.textContent = "";
   const all = [...shopping.entries()].map(([id, d]) => ({ id, ...d }));
-  const open = all.filter(s => !s.done).sort((a, b) => (a.addedAt || 0) - (b.addedAt || 0));
-  const done = all.filter(s => s.done).sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0));
+  // alphabetical, ignoring accents and case
+  const abc = (a, b) => shopName(a).localeCompare(shopName(b), "pt-BR", { sensitivity: "base" });
+  const open = all.filter(s => !s.done).sort(abc);
+  const done = all.filter(s => s.done).sort(abc);
 
   if (!all.length) {
     box.append(h("div", { class: "state" }, h("strong", {}, "Nada para comprar"),
@@ -1046,14 +1051,28 @@ function clearDone() {
 // shopping input gets the same name suggestions
 { const inp = $("#shopIn"), slot = $("#shopInSlot"); slot.append(withSuggest(inp, () => $("#shopForm").requestSubmit())); }
 
+const shopName = s => (s.itemId && items.get(s.itemId)?.name) || s.name;
+// an entry still to buy with the same name (accents and case ignored)
+const onShopList = name => [...shopping.values()].find(s => !s.done && norm(shopName(s)) === norm(name)) || null;
+
+// While typing: say right away when that item is already on the list.
+function shopHint() {
+  const v = $("#shopIn").value.trim();
+  const dup = v ? onShopList(v) : null;
+  const el = $("#shopHint");
+  el.hidden = !dup;
+  el.textContent = dup ? `✓ “${shopName(dup)}” já está na lista` : "";
+}
+$("#shopIn").addEventListener("input", shopHint);
+
 $("#shopForm").addEventListener("submit", e => {
   e.preventDefault();
   const name = $("#shopIn").value.trim();
   if (!name) return;
-  const dup = [...shopping.values()].find(s => !s.done && norm(s.name) === norm(name));
-  if (dup) { toast("Já está na lista"); $("#shopIn").value = ""; return; }
+  if (onShopList(name)) { shopHint(); toast("Já está na lista"); return; }
   store.set("shopping", newId(name), { name, done: false, auto: false, addedAt: Date.now() }).catch(fail);
   $("#shopIn").value = "";
+  shopHint();
 });
 
 /* ---------- shelves tab ---------- */
